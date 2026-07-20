@@ -1,0 +1,1442 @@
+.leap-app {
+  display: flex;
+  min-height: 100vh;
+  background: #f5f7fa;
+  color: #1f2430;
+}
+
+/* ---------- Sidebar ---------- */
+.leap-sidebar {
+  width: 260px;
+  flex: 0 0 260px;
+  background: #1a130f;
+  color: #f2ede6;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 16px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.leap-sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 0 4px;
+}
+
+.leap-brand-mark {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #f5c518, #e0930a);
+  color: #1a130f;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.leap-brand-title {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.leap-new-position-btn {
+  background: #f5c518;
+  color: #1a130f;
+  border: none;
+  border-radius: 10px;
+  padding: 12px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  margin-bottom: 20px;
+}
+
+.leap-new-position-btn.small {
+  padding: 10px 16px;
+  margin-bottom: 0;
+  white-space: nowrap;
+}
+
+.leap-new-position-btn:hover {
+  background: #ffd23f;
+}
+
+.leap-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.leap-nav-group-label {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: #8a8079;
+  margin: 14px 8px 6px;
+}
+
+.leap-nav-btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: transparent;
+  border: none;
+  color: #d8d0c7;
+  padding: 9px 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.leap-nav-btn:hover:not(:disabled) {
+  background: #2a2018;
+}
+
+.leap-nav-btn.active {
+  background: #33261a;
+  color: #f5c518;
+  font-weight: 600;
+}
+
+.leap-nav-btn:disabled {
+  color: #5a534c;
+  cursor: not-allowed;
+}
+
+.leap-count {
+  font-size: 12px;
+  color: inherit;
+  opacity: 0.75;
+}
+
+.leap-sidebar-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 4px 0;
+  border-top: 1px solid #2a2018;
+  margin-top: 12px;
+}
+
+.leap-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #6b46c1;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.leap-sidebar-footer-dash {
+  color: #8a8079;
+}
+
+/* ---------- Main ---------- */
+.leap-main {
+  flex: 1;
+  min-width: 0;
+  padding: 28px 36px 60px;
+}
+
+.leap-view-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.leap-view-header-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.leap-header-mark {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f5c518, #e0930a);
+  color: #1a130f;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.leap-view-header h1 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.leap-view-header p {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.leap-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ---------- Stat tiles ---------- */
+.leap-stat-row {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.leap-stat-tile {
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.leap-stat-label {
+  font-size: 11px;
+  color: #6b7280;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.leap-stat-value {
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.leap-stat-sub {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 2px;
+}
+
+/* ---------- Pipeline panels ---------- */
+.leap-pipeline-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-bottom: 28px;
+}
+
+.leap-pipeline-panel {
+  background: #fff;
+  border: 1px solid;
+  border-radius: 14px;
+  padding: 18px;
+}
+
+.leap-pipeline-title {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.leap-pipeline-sub {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.leap-pipeline-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.leap-pipeline-stats .num {
+  font-size: 20px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.leap-pipeline-stats .lbl {
+  font-size: 10px;
+  color: #9ca3af;
+  text-align: center;
+}
+
+.leap-pipeline-label,
+.leap-pipeline-recent-label {
+  font-size: 11px;
+  color: #9ca3af;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+  margin-top: 10px;
+}
+
+.leap-progress-track {
+  display: flex;
+  gap: 3px;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.leap-progress-track.wide {
+  height: 10px;
+}
+
+.leap-progress-seg {
+  flex: 1;
+  border-radius: 3px;
+}
+
+.leap-pipeline-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.leap-pipeline-step-chip {
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #4b5563;
+}
+
+.leap-pipeline-step-chip .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.leap-pipeline-recent {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.leap-recent-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 8px 4px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.leap-recent-row:hover {
+  background: #f3f4f6;
+}
+
+.leap-recent-index {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex: none;
+}
+
+.leap-recent-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.leap-recent-title {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.leap-recent-meta {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+/* ---------- Section ---------- */
+.leap-section {
+  margin-bottom: 28px;
+}
+
+.leap-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 12px;
+}
+
+.leap-section-header h3 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.leap-section-sub {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.leap-pipeline-steps-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.leap-pipeline-step-tile {
+  background: #fff;
+  border-radius: 10px;
+  padding: 12px;
+  text-align: center;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.leap-step-index {
+  display: block;
+  font-size: 10px;
+  color: #9ca3af;
+}
+
+.leap-step-count {
+  display: block;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.leap-step-name {
+  display: block;
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.leap-step-name em {
+  display: block;
+  font-style: normal;
+  font-size: 9px;
+  color: #c9cdd4;
+}
+
+/* ---------- Table ---------- */
+.leap-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.leap-table th {
+  text-align: left;
+  font-size: 11px;
+  color: #9ca3af;
+  padding: 10px 14px;
+  border-bottom: 1px solid #eef0f2;
+}
+
+.leap-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #f4f5f7;
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.leap-table tr {
+  cursor: pointer;
+}
+
+.leap-table tr:hover td {
+  background: #fafafa;
+}
+
+.leap-step-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  margin-right: 8px;
+}
+
+.leap-step-name-inline {
+  font-size: 12px;
+  color: #4b5563;
+}
+
+.leap-table-title {
+  font-weight: 600;
+}
+
+.leap-table-sub {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+/* ---------- Chips / filters ---------- */
+.leap-chip {
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.leap-chip.amber.active { background: #fef3c7; border-color: #f59e0b; color: #92400e; }
+.leap-chip.green.active { background: #d1fae5; border-color: #10b981; color: #065f46; }
+
+.leap-search-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.leap-search-input {
+  flex: 1;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  font-size: 14px;
+}
+
+.leap-search-count {
+  color: #9ca3af;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* ---------- Position cards ---------- */
+.leap-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.leap-position-card {
+  background: #fff;
+  border: 1px solid #eef0f2;
+  border-radius: 14px;
+  padding: 16px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font: inherit;
+  color: inherit;
+}
+
+.leap-position-card:hover {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+.leap-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 11px;
+}
+
+.leap-kind-badge {
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 5px;
+}
+
+.leap-kind-badge.nominated { background: #d1fae5; color: #065f46; }
+.leap-kind-badge.committee { background: #ffe4d6; color: #9a3412; }
+
+.leap-card-dept,
+.leap-card-state {
+  color: #9ca3af;
+}
+
+.leap-step-pill {
+  margin-left: auto;
+  background: #eef2ff;
+  color: #4338ca;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.leap-card-title {
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.leap-card-role {
+  color: #b45309;
+  font-weight: 600;
+  font-size: 12px;
+  margin-top: -6px;
+}
+
+.leap-card-stage-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.leap-card-team {
+  color: #9ca3af;
+}
+
+.leap-card-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  border-top: 1px dashed #eef0f2;
+  padding-top: 10px;
+}
+
+.leap-card-stat-num {
+  font-size: 16px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.leap-card-stat-label {
+  font-size: 9px;
+  color: #9ca3af;
+  text-align: center;
+}
+
+.leap-card-footer-tag {
+  align-self: flex-start;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.leap-card-footer-tag.finalized {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.leap-empty {
+  color: #9ca3af;
+  font-size: 14px;
+  padding: 30px;
+  text-align: center;
+  grid-column: 1 / -1;
+}
+
+/* ---------- Position detail ---------- */
+.leap-breadcrumb button {
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 0 0 12px;
+}
+
+.leap-detail-header h1 {
+  margin: 0 0 4px;
+  font-size: 24px;
+}
+
+.leap-detail-header p {
+  margin: 0 0 16px;
+  color: #9ca3af;
+  font-size: 13px;
+}
+
+.leap-detail-location {
+  margin-top: -12px !important;
+}
+
+.leap-position-tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.leap-position-tab-label {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+.leap-position-tab-chip {
+  background: #1a130f;
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.leap-stage-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.leap-stage-tab {
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  padding: 10px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.leap-stage-tab.selected {
+  background: #111827;
+  color: #fff;
+  border-color: #111827;
+}
+
+.leap-stage-tab.disabled {
+  color: #cbd5e1;
+  cursor: not-allowed;
+}
+
+.leap-stage-tab .check {
+  color: #10b981;
+}
+
+.leap-stage-tab.selected .check {
+  color: #34d399;
+}
+
+.leap-stage-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.leap-seats-badge {
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 999px;
+  margin-right: auto;
+}
+
+.leap-btn-primary,
+.leap-btn-secondary {
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.leap-btn-primary {
+  background: #6d28d9;
+  color: #fff;
+  border: none;
+}
+
+.leap-btn-primary:disabled {
+  background: #d1d5db;
+  cursor: not-allowed;
+}
+
+.leap-btn-secondary {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  color: #374151;
+}
+
+.leap-info-banner {
+  background: #eef2ff;
+  color: #3730a3;
+  padding: 14px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+
+.leap-info-banner.muted {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.leap-candidate-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.leap-candidate-card {
+  background: #fff;
+  border: 1px solid #eef0f2;
+  border-radius: 14px;
+  padding: 18px;
+  max-width: 520px;
+}
+
+.leap-candidate-top {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 8px;
+}
+
+.leap-candidate-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #e0e7ff;
+  color: #4338ca;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  font-size: 16px;
+}
+
+.leap-candidate-score {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  background: #fef3c7;
+  color: #92400e;
+  font-weight: 800;
+  font-size: 16px;
+  padding: 2px 12px;
+  border-radius: 8px;
+  margin-right: 8px;
+}
+
+.leap-candidate-score em {
+  font-style: normal;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.leap-candidate-status {
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.leap-candidate-name {
+  font-weight: 800;
+  font-size: 15px;
+  margin-top: 6px;
+}
+
+.leap-candidate-considered {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.leap-candidate-considered b {
+  color: #4338ca;
+}
+
+.leap-candidate-contact {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #4b5563;
+}
+
+.leap-detail-footnote {
+  margin-top: 16px;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.leap-detail-info-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.leap-detail-info-grid > div {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 16px 18px;
+}
+
+.leap-detail-info-grid span {
+  display: block;
+  font-size: 10px;
+  color: #9ca3af;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.leap-detail-info-grid b {
+  font-size: 14px;
+  color: #111827;
+  font-weight: 700;
+}
+
+.leap-add-candidates-btns {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.leap-chip-btn-outline {
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  color: #374151;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.leap-chip-btn-outline.mid {
+  border-color: #a7f3d0;
+  color: #10b981;
+}
+
+.leap-mapped-candidates-label {
+  font-size: 11px;
+  color: #9ca3af;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin: 0 0 14px;
+}
+
+.leap-candidates-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 60px 20px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px dashed #d1d5db;
+}
+
+.leap-candidates-empty-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #eef2ff;
+  color: #6366f1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.leap-candidates-empty-title {
+  font-weight: 800;
+  font-size: 15px;
+  color: #111827;
+  margin-bottom: 4px;
+}
+
+.leap-candidates-empty-sub {
+  font-size: 13px;
+  color: #9ca3af;
+  margin-bottom: 20px;
+}
+
+.leap-candidates-empty-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.leap-btn-add-candidates {
+  background: #10b981;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ---------- Create candidate modal ---------- */
+.leap-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 50;
+}
+
+.leap-create-candidate-modal {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px 28px;
+  width: 100%;
+  max-width: 860px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.leap-modal-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.leap-modal-title-row h3 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+
+.leap-modal-title-row p {
+  margin: 0;
+  font-size: 12.5px;
+  color: #9ca3af;
+}
+
+.leap-modal-close {
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: #9ca3af;
+  cursor: pointer;
+}
+
+.leap-create-candidate-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px 20px;
+}
+
+.leap-create-candidate-grid label {
+  display: block;
+  font-size: 11px;
+  color: #6b7280;
+  letter-spacing: 0.04em;
+  margin-bottom: 5px;
+}
+
+.leap-create-candidate-grid input,
+.leap-create-candidate-grid select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  font-size: 13px;
+}
+
+.leap-create-candidate-grid select:disabled {
+  background: #f9fafb;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.leap-modal-actions-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+/* ---------- New position form ---------- */
+/* Values below are pulled 1:1 from the reference site's "Post Proposal" flow (Inter font, #E2E8F0 borders, 14px radius). */
+.leap-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+.leap-modal-header h2 {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.leap-modal-header p {
+  margin: 0 0 20px;
+  color: #64748b;
+  font-size: 11.5px;
+}
+
+.leap-modal-kind-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.leap-modal-kind-card {
+  position: relative;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+  text-align: left;
+  background: #fff;
+  cursor: pointer;
+}
+
+.leap-modal-kind-card.selected {
+  border-color: #10b981;
+  background: #ecfdf5;
+}
+
+.leap-modal-kind-card .title {
+  font-weight: 700;
+}
+
+.leap-modal-kind-card .sub {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-top: 2px;
+}
+
+.leap-modal-kind-card .check {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  color: #10b981;
+  font-weight: 800;
+}
+
+@keyframes leapStepIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.leap-modal-step,
+.leap-modal-footer {
+  animation: leapStepIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.leap-modal-step {
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 0 0 1px rgba(15, 23, 42, 0.04);
+  padding: 20px 24px;
+}
+
+.leap-modal-step-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.leap-modal-step-header .num {
+  background: linear-gradient(135deg, #ffd000, #c8291e);
+  box-shadow: 0 2px 8px rgba(200, 41, 30, 0.3);
+  color: #fff;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12.5px;
+  font-weight: 800;
+  flex: none;
+}
+
+.leap-modal-step-header b {
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.leap-modal-step-header p {
+  margin: 0;
+  color: #64748b;
+  font-size: 12.5px;
+  flex-basis: 100%;
+}
+
+.leap-modal-step label {
+  display: block;
+  font-size: 12px;
+  color: #6b7280;
+  margin: 10px 0 4px;
+}
+
+.leap-modal-step select,
+.leap-modal-step input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  font-size: 13px;
+}
+
+.leap-modal-step select {
+  max-width: 420px;
+}
+
+.leap-modal-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.leap-modal-inline-btns {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.leap-modal-inline-btns .leap-btn-secondary {
+  white-space: nowrap;
+}
+
+.leap-selected-tag {
+  margin-top: 10px;
+  display: inline-block;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 999px;
+}
+
+.leap-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.leap-chip-option {
+  border: 2px solid #e2e8f0;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 0 0 1px rgba(15, 23, 42, 0.04);
+  padding: 14px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  cursor: pointer;
+  transition: 0.12s;
+}
+
+.leap-chip-option.selected {
+  border-color: #0f9d6e;
+  background: rgba(15, 157, 110, 0.03);
+  box-shadow: 0 0 0 4px rgba(15, 157, 110, 0.094);
+  color: #0f9d6e;
+}
+
+.leap-chip-option.selected::before {
+  content: '✓ ';
+}
+
+.leap-chip-option-lg {
+  padding: 20px 26px;
+  font-size: 16px;
+  min-width: 150px;
+}
+
+.leap-chip-icon {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-right: 8px;
+  color: #c8291e;
+}
+
+.leap-chip-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.leap-chip-option.selected .leap-chip-icon {
+  color: #0f9d6e;
+}
+
+.leap-modal-step-row {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.leap-modal-step-row .leap-modal-step {
+  flex: 1;
+  min-width: 0;
+}
+
+.leap-position-card-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 10px;
+  margin-bottom: 16px;
+}
+
+.leap-position-card {
+  border: 2px solid #e2e8f0;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 0 0 1px rgba(15, 23, 42, 0.04);
+  padding: 20px 24px;
+  min-width: 180px;
+  cursor: pointer;
+  transition: 0.12s;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+
+.leap-position-card-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.leap-position-card-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.leap-position-card-total {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.leap-position-card-open {
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.leap-position-card-open.zero {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.leap-position-card.selected {
+  border-color: #0f9d6e;
+  background: rgba(15, 157, 110, 0.03);
+  box-shadow: 0 0 0 4px rgba(15, 157, 110, 0.094);
+}
+
+.leap-position-card.selected .leap-position-card-name {
+  color: #0f9d6e;
+}
+
+.leap-position-card.selected .leap-position-card-name::before {
+  content: '✓ ';
+}
+
+.leap-modal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.leap-modal-validation {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #dc2626;
+}
+
+.leap-modal-validation .ok {
+  color: #10b981;
+}
+
+.leap-modal-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.leap-create-btn {
+  background: #c8291e;
+  border: 1px solid #c8291e;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 500;
+  padding: 10px 18px;
+  cursor: pointer;
+}
+
+.leap-create-btn:disabled {
+  background: #d1d5db;
+  border-color: #d1d5db;
+  cursor: not-allowed;
+}
+
+@media (max-width: 960px) {
+  .leap-stat-row { grid-template-columns: repeat(3, 1fr); }
+  .leap-pipeline-grid { grid-template-columns: 1fr; }
+  .leap-pipeline-steps-row { grid-template-columns: repeat(4, 1fr); }
+  .leap-detail-info-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 640px) {
+  .leap-app { flex-direction: column; }
+  .leap-sidebar { width: 100%; flex: none; height: auto; position: static; }
+  .leap-main { padding: 20px; }
+  .leap-stat-row { grid-template-columns: repeat(2, 1fr); }
+  .leap-modal-step-row { flex-direction: column; }
+  .leap-detail-info-grid { grid-template-columns: repeat(2, 1fr); }
+}

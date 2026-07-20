@@ -18,7 +18,7 @@ function LockIcon() {
   )
 }
 
-export default function Login() {
+export default function Login({ onLoginSuccess }) {
   const [userName, setUserName] = useState('')
   const [password, setPassword] = useState('')
 
@@ -26,6 +26,7 @@ export default function Login() {
     e.preventDefault()
     // Frontend clone only — wire this up to real authentication as needed.
     console.log('SIGN IN', { userName, password })
+    onLoginSuccess?.()
   }
 
   return (
