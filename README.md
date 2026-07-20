@@ -1,2 +1,1 @@
-# prod-code
-MyPartyDashboard Login Page
+# Local Body Election Frontend Code
