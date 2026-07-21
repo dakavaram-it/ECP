@@ -14,7 +14,7 @@ The frontend proxies `/api/*` here, so **both** processes must be running — st
 them in two terminals from the project root:
 
 ```bash
-npm run dev:api   # backend on :8001
+npm run dev:api (or) uvicorn main:app --port 8001 --reload  # backend on :8001
 npm run dev       # frontend on :9001
 ```
 
