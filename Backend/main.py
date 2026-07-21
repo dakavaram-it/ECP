@@ -8,12 +8,23 @@ from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
+
+def env(key):
+    value = os.environ.get(key)
+    if not value:
+        raise RuntimeError(
+            f"{key} is not set. Copy .env.example to .env in the project root "
+            f"and fill in the database credentials."
+        )
+    return value
+
+
 DB = {
-    "host": os.environ["DB_HOST"],
-    "port": int(os.environ["DB_PORT"]),
-    "user": os.environ["DB_USER"],
-    "password": os.environ["DB_PASSWORD"],
-    "database": os.environ["DB_NAME"],
+    "host": env("DB_HOST"),
+    "port": int(env("DB_PORT")),
+    "user": env("DB_USER"),
+    "password": env("DB_PASSWORD"),
+    "database": env("DB_NAME"),
     "cursorclass": pymysql.cursors.DictCursor,
 }
 

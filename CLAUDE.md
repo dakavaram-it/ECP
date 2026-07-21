@@ -4,24 +4,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
+All npm commands run from `Frontend/`, not the repo root.
+
 ```bash
 npm install          # install deps
 npm run dev          # Vite dev server on 0.0.0.0:9001
-npm run build        # production build to dist/
+npm run build        # production build to Frontend/dist/
 npm run preview      # serve the built output on 0.0.0.0:9001
 ```
 
 There is no test runner, linter, or formatter configured — do not assume `npm test` or `npm run lint` exist. Verification means building (`npm run build`) and clicking through in the browser.
 
-Deployment: `./install.sh` installs deps, builds, and (re)starts the app under PM2 using `ecosystem.config.cjs` (process name `portal-frontend`, `vite preview` on port 9001).
+Deployment: `Frontend/install.sh` installs deps, builds, and (re)starts the app under PM2 using `ecosystem.config.cjs` (process name `portal-frontend`, `vite preview` on port 9001). Run it from `Frontend/`.
 
 ## What this is
 
 A frontend-only demo/prototype of a nomination workflow for local body elections, styled as a party internal portal. React 18 + Vite SPA, plain JSX with hand-written CSS. **No router, no backend, no tests, no state library.** Only deps are `react` and `react-dom`. All data lives in memory and resets on reload.
 
-Two top-level screens, switched by a boolean in `src/App.jsx`:
-- `src/Login.jsx` — visual-only login. `handleSubmit` accepts *any* credentials, `console.log`s the username/password, and calls `onLoginSuccess()`. There is no auth.
-- `src/leap/Leap.jsx` — the actual app.
+Two top-level screens, switched by a boolean in `Frontend/src/App.jsx`:
+- `Frontend/src/Login.jsx` — visual-only login. `handleSubmit` accepts *any* credentials, `console.log`s the username/password, and calls `onLoginSuccess()`. There is no auth.
+- `Frontend/src/leap/Leap.jsx` — the actual app.
 
 ## The `leap/` module
 
@@ -47,7 +49,7 @@ New IDs come from module-level counters (`_newId`, `_candId` in `Leap.jsx`; `_ci
 
 `PositionDetail` branches on `stage.key === 'profiles'` (stage 0) for the "add candidates" layout and falls through to a review layout for every other stage.
 
-### `src/leap/data.js`
+### `Frontend/src/leap/data.js`
 
 Central source of both the seed dataset and the domain vocabulary. It exports:
 - Config constants (`STATE_NAME`, `PARTY_NAME`, `PARTY_SHORT`, `TERM_LABEL`).
@@ -76,12 +78,12 @@ If you touch `STAGES`, check every one of the consumers above.
 
 ## Styling
 
-`src/leap/Leap.css` (~1440 lines) holds every class for the leap module; `Login.css` (~180) covers the login screen; `index.css` is a 17-line reset. Classes are flat and prefixed `leap-`. No CSS modules, no utility framework — add styles to the existing file matching the surrounding naming. Fonts (Montserrat, Inter) load from Google Fonts in `index.html`.
+`Frontend/src/leap/Leap.css` (~1440 lines) holds every class for the leap module; `Login.css` (~180) covers the login screen; `index.css` is a 17-line reset. Classes are flat and prefixed `leap-`. No CSS modules, no utility framework — add styles to the existing file matching the surrounding naming. Fonts (Montserrat, Inter) load from Google Fonts in `index.html`.
 
 ## Known dead / inert code
 
 Mention rather than silently remove:
-- `src/leap/components/Dashboard.jsx` (~167 lines) is not imported anywhere.
+- `Frontend/src/leap/components/Dashboard.jsx` (~167 lines) is not imported anywhere.
 - `AllPositions` and `PositionCard` are unreachable (see table above). `AllPositions`'s `onNewPosition` prop is never passed, and it renders `st.nomOnly`, a field `STAGES` entries no longer have.
 - `stageCounts` and `TERM_LABEL` are exported from `data.js` but used only by the dead `Dashboard`.
-- `src/circle.svg` is used only by the login screen.
+- `Frontend/src/circle.svg` is used only by the login screen.
