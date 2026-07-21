@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { STAGES, STAGE_COLORS, stagesFor, AP_ASSEMBLIES, AP_MANDAL_TOWNS, PARTY_NAME } from '../data.js'
+import { STAGES, STAGE_COLORS, stagesFor, PARTY_NAME } from '../data.js'
+import { getAssemblies, getMandals, useList } from '../api.js'
 
 const GENDERS = ['Male', 'Female', 'Other']
 const CASTE_CATEGORIES = ['OC', 'BC', 'SC', 'ST']
@@ -76,6 +77,10 @@ export default function PositionDetail({ position, onBack, onAdvance, onRetreat,
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [form, setForm] = useState(EMPTY_CANDIDATE_FORM)
 
+  const assemblies = useList(getAssemblies, [])
+  const mandals = useList(form.assembly ? () => getMandals(form.assembly) : null, [form.assembly])
+  const assemblyName = assemblies.find((a) => String(a.constituency_id) === form.assembly)?.constituency_name || ''
+
   const openCreateModal = () => setShowCreateModal(true)
   const closeCreateModal = () => {
     setShowCreateModal(false)
@@ -106,7 +111,7 @@ export default function PositionDetail({ position, onBack, onAdvance, onRetreat,
       occupation: form.occupation || 'Politician',
       education: form.education || 'Graduate',
       parliament: form.parliament,
-      assembly: form.assembly,
+      assembly: assemblyName,
       mandal: form.mandal,
       casteCommunityPct: 0,
       memberSince: new Date().getFullYear(),
@@ -297,7 +302,9 @@ export default function PositionDetail({ position, onBack, onAdvance, onRetreat,
                     <label>ASSEMBLY</label>
                     <select value={form.assembly} onChange={(e) => updateForm('assembly', e.target.value)}>
                       <option value="">Select assembly…</option>
-                      {AP_ASSEMBLIES.map((a) => <option key={a} value={a}>{a}</option>)}
+                      {assemblies.map((a) => (
+                        <option key={a.constituency_id} value={a.constituency_id}>{a.constituency_name}</option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -308,7 +315,9 @@ export default function PositionDetail({ position, onBack, onAdvance, onRetreat,
                       disabled={!form.assembly}
                     >
                       <option value="">{form.assembly ? 'Select…' : 'Select an assembly first'}</option>
-                      {AP_MANDAL_TOWNS.map((m) => <option key={m} value={m}>{m}</option>)}
+                      {mandals.map((m) => (
+                        <option key={m.tehsil_id} value={m.tehsil_name}>{m.tehsil_name}</option>
+                      ))}
                     </select>
                   </div>
                 </div>

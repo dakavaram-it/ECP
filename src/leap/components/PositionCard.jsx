@@ -1,8 +1,9 @@
-import { STAGES, STAGE_COLORS, stagesFor } from '../data.js'
+import { STAGE_COLORS, stagesFor } from '../data.js'
 
 export default function PositionCard({ position, onOpen }) {
   const stages = stagesFor(position.kind)
-  const stage = STAGES[position.stageIndex]
+  const stageIndex = Math.min(position.stageIndex, stages.length - 1)
+  const stage = stages[stageIndex]
   const finalized = position.candidates.filter((c) => c.status === 'Finalized').length
   const shortlisted = position.candidates.length - finalized
 
@@ -29,7 +30,7 @@ export default function PositionCard({ position, onOpen }) {
       </div>
 
       <div className="leap-card-stage-row">
-        <span className="leap-card-stage-label" style={{ color: STAGE_COLORS[position.stageIndex] }}>{stage.full}</span>
+        <span className="leap-card-stage-label" style={{ color: STAGE_COLORS[stageIndex] }}>{stage.full}</span>
         <span className="leap-card-team">{stage.team.split('·')[0].trim()}</span>
       </div>
 
