@@ -253,3 +253,48 @@ def assign_proposal_candidate(body: AssignProposalCandidate):
         (body.proposal_position_id, body.tdp_cadre_id),
     )
     return {"proposal_candidate_id": proposal_candidate_id}
+
+
+CADRE_SEARCH_FILTERS = {
+    "MembershipId": "TC.membership_id = %s",
+    "MobileNo": "TC.mobile_no = %s",
+    "Name": "TC.first_name LIKE %s",
+}
+
+
+@app.get("/S12cadreSearch")
+def cadre_search(constituency_id: int, search_type: str, search_value: str):
+    if search_type not in CADRE_SEARCH_FILTERS:
+        raise HTTPException(
+            400, "search_type must be one of MembershipId, MobileNo, Name"
+        )
+    value = f"%{search_value}%" if search_type == "Name" else search_value
+
+    return query(
+        "SELECT TC.tdp_cadre_id, TC.membership_id, TC.first_name AS member_name, "
+        "TC.gender, TC.age, TC.relative_name, TC.relative_type, TC.mobile_no, "
+        "CC.category_name, CT.caste_name, C.constituency_id, C.name AS constituency_name, "
+        "CASE WHEN T.tehsil_id IS NOT NULL THEN T.tehsil_name "
+        "ELSE CONCAT(L.name, ' Town') END AS mandal_town_name, "
+        "P.panchayat_name, V.voter_id_card_no, "
+        "CASE WHEN TC.image IS NOT NULL "
+        "THEN CONCAT('https://imagesearch-projectkv.s3.amazonaws.com/cadre_images/', TC.image) "
+        "ELSE '' END AS img_url "
+        "FROM tdp_cadre TC "
+        "JOIN user_address UA ON TC.address_id = UA.user_address_id "
+        "JOIN constituency C ON UA.constituency_id = C.constituency_id "
+        "LEFT OUTER JOIN tehsil T ON UA.tehsil_id = T.tehsil_id "
+        "LEFT OUTER JOIN local_election_body L ON UA.local_election_body = L.local_election_body_id "
+        "LEFT OUTER JOIN panchayat P ON UA.panchayat_id = P.panchayat_id "
+        "LEFT OUTER JOIN caste_state CS ON TC.caste_state_id = CS.caste_state_id "
+        "LEFT OUTER JOIN caste CT ON CS.caste_id = CT.caste_id "
+        "LEFT OUTER JOIN caste_category_group CCG "
+        "ON CS.caste_category_group_id = CCG.caste_category_group_id "
+        "LEFT OUTER JOIN caste_category CC ON CCG.caste_category_id = CC.caste_category_id "
+        "LEFT OUTER JOIN voter V ON TC.voter_id = V.voter_id "
+        "WHERE TC.is_deleted = 'N' AND C.constituency_id = %s AND "
+        + CADRE_SEARCH_FILTERS[search_type],
+        (constituency_id, value),
+    )
+
+
