@@ -169,6 +169,9 @@ export default function NewPositionModal({ onCreate }) {
     locationType === 'm'
       ? mandals.find((m) => String(m.tehsil_id) === locationId)?.tehsil_name || ''
       : towns.find((t) => String(t.town_id) === locationId)?.town_name || ''
+  const proposalConstituencyName =
+    proposalConstituencies.find((pc) => String(pc.proposal_consituency_id) === proposalConstituencyId)
+      ?.constituency_name || ''
   const position = positions.find((p) => String(p.proposal_position_id) === positionId)
 
   const openSlots = (p) => p.max_proposals - p.proposed_cnt
@@ -217,13 +220,13 @@ export default function NewPositionModal({ onCreate }) {
       kind: 'nominated',
       electionType,
       assembly: assemblyName,
-      assemblyId: Number(assemblyId),
       location: locationName,
       dept: electionType,
       title: assemblyName,
       role: position.role_name.toUpperCase(),
       seats: position.max_positions,
       proposalConstituencyId: Number(proposalConstituencyId),
+      proposalConstituencyName,
       proposalPositionId: position.proposal_position_id,
       maxProposals: position.max_proposals,
       reservation,

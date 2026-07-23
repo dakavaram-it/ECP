@@ -93,6 +93,17 @@ originally `is_active = NULL, order_no = NULL` — S1 hid the one type the data 
 it has since been activated. If step 1 ever shows no Panchayat option again, check
 those two columns first.
 
+**Candidate eligibility is location + reservation, enforced in two places.** A cadre may
+be proposed only if their `user_address` matches the proposal constituency's own address
+(assembly + mandal + panchayat, or local election body for towns) *and* satisfies its
+reservation. `S12` applies it to the search pool, `S11` re-checks it on write — both via
+the shared `proposal_context()` / `eligibility_filter()` in `main.py`. Change eligibility
+there, not in either endpoint.
+
+Some seeded `proposal_candidate` rows pre-date the rule and would fail it now (rows 1/6/7
+are KUPPAM cadre on a VALLURU position). `S13` still returns them — it reports what *is*
+assigned, and filtering it would desync the list from `S7`'s `proposed_cnt`.
+
 **A "proposal constituency" is the local body being contested** — for this data a
 *panchayat* (`VALLURU`, `constituency_id` 58153, `election_scope_id` 33), one level below
 the mandal. Positions and reservation hang off it, not off the mandal, which is why

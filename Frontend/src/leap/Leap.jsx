@@ -21,8 +21,8 @@ export default function Leap() {
   }
 
   const createPosition = ({
-    kind, electionType, assembly, assemblyId, location, dept, title, role, seats,
-    proposalConstituencyId, proposalPositionId, maxProposals, reservation,
+    kind, electionType, assembly, location, dept, title, role, seats,
+    proposalConstituencyId, proposalConstituencyName, proposalPositionId, maxProposals, reservation,
   }) => {
     _newId += 1
     const newPos = {
@@ -32,7 +32,6 @@ export default function Leap() {
       state: positions[0]?.state,
       level: electionType,
       assembly,
-      assemblyId,
       location,
       title,
       role,
@@ -41,6 +40,7 @@ export default function Leap() {
       stageIndex: 0,
       candidates: [],
       proposalConstituencyId,
+      proposalConstituencyName,
       proposalPositionId,
       maxProposals,
       reservation,

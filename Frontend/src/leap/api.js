@@ -46,10 +46,10 @@ export const assignCandidate = (proposalPositionId, tdpCadreId) =>
     proposal_position_id: proposalPositionId,
     tdp_cadre_id: tdpCadreId,
   })
-export const searchCadre = (constituencyId, searchType, searchValue) =>
+export const searchCadre = (proposalConstituencyId, searchType, searchValue) =>
   get(
-    `/S12cadreSearch?constituency_id=${constituencyId}&search_type=${searchType}` +
-      `&search_value=${encodeURIComponent(searchValue)}`
+    `/S12cadreSearch?proposal_constituency_id=${proposalConstituencyId}` +
+      `&search_type=${searchType}&search_value=${encodeURIComponent(searchValue)}`
   )
 export const getProposalCandidates = (proposalPositionId) =>
   get(`/S13getProposalCandidatesByProposalPositionId?proposal_position_id=${proposalPositionId}`)

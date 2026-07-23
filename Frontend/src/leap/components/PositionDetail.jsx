@@ -124,7 +124,7 @@ export default function PositionDetail({ position, onBack, onAdvance, onRetreat 
     setError('')
     setSelectedCadreId(null)
     try {
-      setResults(await searchCadre(position.assemblyId, searchType, searchValue.trim()))
+      setResults(await searchCadre(position.proposalConstituencyId, searchType, searchValue.trim()))
     } catch (err) {
       setResults([])
       setError(err.message)
@@ -255,8 +255,9 @@ export default function PositionDetail({ position, onBack, onAdvance, onRetreat 
                   <div>
                     <h3>Add Candidate</h3>
                     <p>
-                      Search cadre in {position.assembly} · {remaining} proposal slot{remaining !== 1 ? 's' : ''} left
-                      {position.reservation ? ` · reserved for ${position.reservation}` : ''}
+                      Eligible cadre in {position.proposalConstituencyName} only
+                      {position.reservation ? ` · ${position.reservation}` : ''}
+                      {' · '}{remaining} proposal slot{remaining !== 1 ? 's' : ''} left
                     </p>
                   </div>
                   <button type="button" className="leap-modal-close" onClick={closeSearchModal}>✕</button>
@@ -281,7 +282,9 @@ export default function PositionDetail({ position, onBack, onAdvance, onRetreat 
 
                 <div className="leap-cadre-results">
                   {searched && results.length === 0 && !error && (
-                    <div className="leap-empty">No cadre found in {position.assembly} for that search.</div>
+                    <div className="leap-empty">
+                      No eligible cadre in {position.proposalConstituencyName} matched that search.
+                    </div>
                   )}
                   {results.slice(0, MAX_RESULTS).map((c) => (
                     <CadreResult

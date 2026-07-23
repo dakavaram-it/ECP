@@ -44,14 +44,24 @@ Docs at http://127.0.0.1:8001/docs
 | `GET /S9getProposalConstituencyReservation` | Reservation for a proposal constituency | `proposal_constituency_id` (required) |
 | `GET /S10checkProposalPositionAvailability` | `Available` / `Not Available` for a position | `proposal_position_id` (required) |
 | `POST /S11assignProposalCandidate` | Proposes a cadre for a position after reservation + availability checks; returns the new `proposal_candidate_id` | JSON body: `proposal_position_id`, `tdp_cadre_id` |
-| `GET /S12cadreSearch` | Cadre in a constituency by membership id, mobile or name | `constituency_id`, `search_type` (`MembershipId`\|`MobileNo`\|`Name`), `search_value` |
+| `GET /S12cadreSearch` | Cadre **eligible for a proposal** by membership id, mobile or name | `proposal_constituency_id`, `search_type` (`MembershipId`\|`MobileNo`\|`Name`), `search_value` |
 | `GET /S13getProposalCandidatesByProposalPositionId` | Cadre currently proposed for a position (`is_active = 'Y'`), same fields as S12 | `proposal_position_id` (required) |
 
 `S11` is the only write endpoint. It rejects with `404` for an unknown position or cadre,
-and `409` when the cadre's caste category or gender does not match the proposal
-constituency's reservation, when the position has reached `max_proposals`, or when the
-cadre is already proposed for that position. The inserted row is
-`is_active = 'Y'`, `enrollment_id = 1`.
+and `409` when the cadre is not registered in the proposal constituency, when their caste
+category or gender does not match its reservation, when the position has reached
+`max_proposals`, or when the cadre is already proposed for that position. The inserted row
+is `is_active = 'Y'`, `enrollment_id = 1`.
+
+**Eligibility is defined once**, in `proposal_context()` + `eligibility_filter()`, and used
+by both `S12` (to build the searchable pool) and `S11` (to enforce it on write). A cadre is
+eligible when their `user_address` matches the proposal constituency's own address —
+same assembly, mandal, and panchayat (or local election body, for towns) — *and* they
+satisfy the reservation. `S12` filtering alone would not be enough: `S11` is the boundary,
+since a client can post any `tdp_cadre_id`.
+
+For the seeded VALLURU proposal that narrows the pool from 89,892 cadre (assembly-wide)
+to 1,354 (panchayat + BC).
 
 `S8` and `S10` are unused by the frontend: `S7` already returns the role names `S8`
 gives, and its `max_proposals`/`proposed_cnt` pair is the same predicate `S10`

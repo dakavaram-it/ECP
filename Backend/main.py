@@ -187,6 +187,45 @@ def check_proposal_position_availability(proposal_position_id: int):
     )
 
 
+# A proposal constituency's own address_id carries the full chain it sits in
+# (assembly -> mandal -> panchayat, or -> town). A cadre is eligible only if their
+# address matches that chain and they satisfy the reservation.
+def proposal_context(proposal_constituency_id):
+    rows = query(
+        "SELECT UA.constituency_id, UA.tehsil_id, UA.panchayat_id, UA.local_election_body, "
+        "CR.reservation_type, CR.caste_category_id AS required_caste_category_id, "
+        "CR.gender AS required_gender "
+        "FROM proposal_consituency PC "
+        "JOIN user_address UA ON PC.address_id = UA.user_address_id "
+        "LEFT OUTER JOIN constituency_reservation CR "
+        "ON PC.constituency_reservation_id = CR.constituency_reservation_id "
+        "WHERE PC.proposal_consituency_id = %s",
+        (proposal_constituency_id,),
+    )
+    if not rows:
+        raise HTTPException(404, "Unknown proposal_constituency_id")
+    return rows[0]
+
+
+# WHERE fragment for the eligible-cadre pool. Requires TC, UA and CCG in scope.
+def eligibility_filter(ctx):
+    sql = " AND UA.constituency_id = %s AND UA.tehsil_id <=> %s"
+    args = [ctx["constituency_id"], ctx["tehsil_id"]]
+    # Rural proposals key off the panchayat, urban ones off the local election body.
+    if ctx["panchayat_id"] is not None:
+        sql += " AND UA.panchayat_id = %s"
+        args.append(ctx["panchayat_id"])
+    if ctx["local_election_body"] is not None:
+        sql += " AND UA.local_election_body = %s"
+        args.append(ctx["local_election_body"])
+    if ctx["required_caste_category_id"] is not None:
+        sql += " AND CCG.caste_category_id = %s"
+        args.append(ctx["required_caste_category_id"])
+    if ctx["required_gender"] == "F":
+        sql += " AND TC.gender = 'F'"
+    return sql, args
+
+
 class AssignProposalCandidate(BaseModel):
     proposal_position_id: int
     tdp_cadre_id: int
@@ -195,7 +234,7 @@ class AssignProposalCandidate(BaseModel):
 @app.post("/S11assignProposalCandidate")
 def assign_proposal_candidate(body: AssignProposalCandidate):
     position = query(
-        "SELECT PP.max_proposals, CR.reservation_type, "
+        "SELECT PP.max_proposals, PCon.proposal_consituency_id, CR.reservation_type, "
         "CR.caste_category_id AS required_caste_category_id, "
         "CR.gender AS required_gender "
         "FROM proposal_position PP "
@@ -211,8 +250,10 @@ def assign_proposal_candidate(body: AssignProposalCandidate):
     position = position[0]
 
     cadre = query(
-        "SELECT TC.gender, CCG.caste_category_id "
+        "SELECT TC.gender, CCG.caste_category_id, UA.constituency_id, UA.tehsil_id, "
+        "UA.panchayat_id, UA.local_election_body "
         "FROM tdp_cadre TC "
+        "LEFT OUTER JOIN user_address UA ON TC.address_id = UA.user_address_id "
         "LEFT OUTER JOIN caste_state CS ON TC.caste_state_id = CS.caste_state_id "
         "LEFT OUTER JOIN caste_category_group CCG "
         "ON CS.caste_category_group_id = CCG.caste_category_group_id "
@@ -222,6 +263,17 @@ def assign_proposal_candidate(body: AssignProposalCandidate):
     if not cadre:
         raise HTTPException(404, "Unknown tdp_cadre_id")
     cadre = cadre[0]
+
+    # The cadre must live in the same local body the proposal is for. None == None
+    # covers the NULL halves (panchayat for towns, local_election_body for villages).
+    ctx = proposal_context(position["proposal_consituency_id"])
+    if any(
+        cadre[field] != ctx[field]
+        for field in ("constituency_id", "tehsil_id", "panchayat_id", "local_election_body")
+    ):
+        raise HTTPException(
+            409, "Cadre is not registered in this proposal constituency"
+        )
 
     # required_caste_category_id / required_gender are NULL when the proposal
     # constituency has no reservation, which means anyone is eligible.
@@ -266,12 +318,15 @@ CADRE_SEARCH_FILTERS = {
 }
 
 @app.get("/S12cadreSearch")
-def cadre_search(constituency_id: int, search_type: str, search_value: str):
+def cadre_search(proposal_constituency_id: int, search_type: str, search_value: str):
     if search_type not in CADRE_SEARCH_FILTERS:
         raise HTTPException(
             400, "search_type must be one of MembershipId, MobileNo, Name"
         )
     value = f"%{search_value}%" if search_type == "Name" else search_value
+    eligible_sql, eligible_args = eligibility_filter(
+        proposal_context(proposal_constituency_id)
+    )
 
     return query(
         "SELECT TC.tdp_cadre_id, TC.membership_id, TC.first_name AS member_name, "
@@ -295,9 +350,11 @@ def cadre_search(constituency_id: int, search_type: str, search_value: str):
         "ON CS.caste_category_group_id = CCG.caste_category_group_id "
         "LEFT OUTER JOIN caste_category CC ON CCG.caste_category_id = CC.caste_category_id "
         "LEFT OUTER JOIN voter V ON TC.voter_id = V.voter_id "
-        "WHERE TC.is_deleted = 'N' AND C.constituency_id = %s AND "
+        "WHERE TC.is_deleted = 'N'"
+        + eligible_sql
+        + " AND "
         + CADRE_SEARCH_FILTERS[search_type],
-        (constituency_id, value),
+        (*eligible_args, value),
     )
 
 
