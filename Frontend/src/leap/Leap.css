@@ -1241,7 +1241,6 @@
   margin: 10px 0 4px;
 }
 
-.leap-modal-step select,
 .leap-modal-step input {
   width: 100%;
   padding: 10px 12px;
@@ -1250,8 +1249,92 @@
   font-size: 13px;
 }
 
-.leap-modal-step select {
+/* ---------- Dropdown ---------- */
+.leap-dropdown {
+  position: relative;
   max-width: 420px;
+}
+
+.leap-dropdown-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  font-size: 13px;
+  color: #0f172a;
+  text-align: left;
+  cursor: pointer;
+}
+
+.leap-dropdown-btn.open {
+  border-color: #0f9d6e;
+  box-shadow: 0 0 0 3px rgba(15, 157, 110, 0.12);
+}
+
+.leap-dropdown-btn:disabled {
+  background: #f8fafc;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.leap-dropdown-btn .placeholder {
+  color: #94a3b8;
+}
+
+.leap-dropdown-btn span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leap-dropdown-caret {
+  color: #94a3b8;
+  font-size: 11px;
+  flex: none;
+}
+
+/* Anchored to the button's bottom edge, so it always opens downward. */
+.leap-dropdown-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  max-height: 260px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+  padding: 4px;
+}
+
+.leap-dropdown-option {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #0f172a;
+  text-align: left;
+  cursor: pointer;
+}
+
+.leap-dropdown-option:hover {
+  background: #f1f5f9;
+}
+
+.leap-dropdown-option.selected {
+  background: rgba(15, 157, 110, 0.08);
+  color: #0f9d6e;
+  font-weight: 700;
 }
 
 .leap-modal-row {
@@ -1586,12 +1669,16 @@
   color: #0f9d6e;
 }
 
-/* Assembly / Mandal-Town-District / local body sit on one line, always all three. */
+/* Assembly / Mandal-Town-District / local body sit on one line, always all three.
+   leapStepIn's persisted transform makes each step card a stacking context, so the
+   row needs to outrank the later steps or its open dropdown paints behind them. */
 .leap-modal-step-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 20px;
   align-items: stretch;
+  position: relative;
+  z-index: 1;
 }
 
 .leap-modal-step-row .leap-modal-step {
@@ -1600,18 +1687,12 @@
   flex-direction: column;
 }
 
-.leap-modal-step-row .leap-modal-step select {
+.leap-modal-step-row .leap-modal-step .leap-dropdown {
   margin-top: auto;
 }
 
 .leap-modal-step.locked {
   opacity: 0.6;
-}
-
-.leap-modal-step select:disabled {
-  background: #f8fafc;
-  color: #94a3b8;
-  cursor: not-allowed;
 }
 
 .leap-position-card-list {

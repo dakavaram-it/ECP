@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   getElectionTypes,
   getAssemblies,
@@ -44,6 +44,53 @@ function initials(name) {
     .join('')
     .slice(0, 2)
     .toUpperCase()
+}
+
+// A native <select> lets the browser choose which way its popup opens, and Chrome
+// flips a long list (S2 returns every assembly in the state) upward. This renders
+// the list itself so it always drops below the button.
+function Dropdown({ value, onChange, options, placeholder, disabled }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onDocDown = (e) => {
+      if (!ref.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDocDown)
+    return () => document.removeEventListener('mousedown', onDocDown)
+  }, [open])
+
+  const selected = options.find((o) => o.value === value)
+
+  return (
+    <div className="leap-dropdown" ref={ref} onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false) }}>
+      <button
+        type="button"
+        className={`leap-dropdown-btn ${open ? 'open' : ''}`}
+        disabled={disabled}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className={selected ? '' : 'placeholder'}>{selected ? selected.label : placeholder}</span>
+        <span className="leap-dropdown-caret">▾</span>
+      </button>
+      {open && (
+        <div className="leap-dropdown-list">
+          {options.map((o) => (
+            <button
+              type="button"
+              key={o.value}
+              className={`leap-dropdown-option ${o.value === value ? 'selected' : ''}`}
+              onClick={() => { onChange(o.value); setOpen(false) }}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 const ICON_PROPS = {
@@ -317,41 +364,43 @@ export default function NewPositionModal({ onCreate }) {
         <div className="leap-modal-step-row">
           <div className="leap-modal-step">
             <div className="leap-modal-step-header"><span className="num">2</span><b>Assembly</b><p>Assembly constituency this post covers.</p></div>
-            <select value={assemblyId} onChange={(e) => selectAssembly(e.target.value)}>
-              <option value="">Select…</option>
-              {assemblies.map((a) => (
-                <option key={a.constituency_id} value={a.constituency_id}>{a.constituency_name}</option>
-              ))}
-            </select>
+            <Dropdown
+              value={assemblyId}
+              onChange={selectAssembly}
+              placeholder="Select…"
+              options={assemblies.map((a) => ({
+                value: String(a.constituency_id),
+                label: a.constituency_name,
+              }))}
+            />
           </div>
 
           <div className={`leap-modal-step ${step2Done ? '' : 'locked'}`}>
             <div className="leap-modal-step-header"><span className="num">3</span><b>Mandal/Town/District</b><p>Narrow down to the exact local area.</p></div>
-            <select value={locationKey} onChange={(e) => selectLocation(e.target.value)} disabled={!step2Done}>
-              <option value="">{step2Done ? 'Select…' : 'Select an assembly first'}</option>
-              {mandals.map((m) => (
-                <option key={`m-${m.tehsil_id}`} value={`m:${m.tehsil_id}`}>{m.tehsil_name}</option>
-              ))}
-              {towns.map((t) => (
-                <option key={`t-${t.town_id}`} value={`t:${t.town_id}`}>{t.town_name}</option>
-              ))}
-            </select>
+            <Dropdown
+              value={locationKey}
+              onChange={selectLocation}
+              disabled={!step2Done}
+              placeholder={step2Done ? 'Select…' : 'Select an assembly first'}
+              options={[
+                ...mandals.map((m) => ({ value: `m:${m.tehsil_id}`, label: m.tehsil_name })),
+                ...towns.map((t) => ({ value: `t:${t.town_id}`, label: t.town_name })),
+              ]}
+            />
           </div>
 
           <div className={`leap-modal-step ${locationKey ? '' : 'locked'}`}>
             <div className="leap-modal-step-header"><span className="num">4</span><b>{localBodyLabel}</b><p>The local body being contested.</p></div>
-            <select
+            <Dropdown
               value={proposalConstituencyId}
-              onChange={(e) => selectProposalConstituency(e.target.value)}
+              onChange={selectProposalConstituency}
               disabled={!locationKey || proposalConstituencies.length === 0}
-            >
-              <option value="">{locationKey ? 'Select…' : 'Select a mandal/town first'}</option>
-              {proposalConstituencies.map((pc) => (
-                <option key={pc.proposal_consituency_id} value={pc.proposal_consituency_id}>
-                  {pc.constituency_name}
-                </option>
-              ))}
-            </select>
+              placeholder={locationKey ? 'Select…' : 'Select a mandal/town first'}
+              options={proposalConstituencies.map((pc) => ({
+                value: String(pc.proposal_consituency_id),
+                label: pc.constituency_name,
+              }))}
+            />
             {locationKey && proposalConstituencies.length === 0 && (
               <p className="leap-field-hint">No {localBodyLabel} is configured for this mandal/town.</p>
             )}
