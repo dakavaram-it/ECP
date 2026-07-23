@@ -9,8 +9,21 @@ import {
   getPositionsOverview,
   getReservation,
   getProposalCandidates,
+  searchCadre,
+  assignCandidate,
   useList,
 } from '../api.js'
+
+// Values must match the backend's CADRE_SEARCH_FILTERS keys.
+const SEARCH_TYPES = [
+  { value: 'Name', label: 'Name' },
+  { value: 'MembershipId', label: 'Membership ID' },
+  { value: 'MobileNo', label: 'Mobile No' },
+]
+
+// A name search is a substring match over the whole constituency and routinely
+// returns four figures of rows; only the first page gets rendered.
+const MAX_RESULTS = 50
 
 // S13 is keyed per position, so the member list is the same cadre shape the
 // detail screen renders. Every field it returns is shown except the internal
@@ -207,7 +220,7 @@ const ELECTION_TYPE_ICONS = {
   Corporation: IconFactory,
 }
 
-export default function NewPositionModal({ onCreate }) {
+export default function NewPositionModal() {
   const [electionTypeId, setElectionTypeId] = useState('')
   const [assemblyId, setAssemblyId] = useState('')
   const [locationKey, setLocationKey] = useState('')
@@ -216,6 +229,18 @@ export default function NewPositionModal({ onCreate }) {
   const [membersAction, setMembersAction] = useState('')
 
   const [positionId, setPositionId] = useState('')
+
+  // Step 6 — cadre search (S12) and assign (S11).
+  const [searchType, setSearchType] = useState('Name')
+  const [searchValue, setSearchValue] = useState('')
+  const [results, setResults] = useState([])
+  const [searched, setSearched] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [selectedCadreId, setSelectedCadreId] = useState(null)
+  const [error, setError] = useState('')
+  const [assigned, setAssigned] = useState('')
+  // Bumped after a successful assign so S7's proposed_cnt / open slots re-read.
+  const [positionsKey, setPositionsKey] = useState(0)
 
   const electionTypes = useList(getElectionTypes, [])
   const assemblies = useList(getAssemblies, [])
@@ -237,7 +262,7 @@ export default function NewPositionModal({ onCreate }) {
 
   const positions = useList(
     proposalConstituencyId ? () => getPositionsOverview(proposalConstituencyId) : null,
-    [proposalConstituencyId]
+    [proposalConstituencyId, positionsKey]
   )
   const reservationRows = useList(
     proposalConstituencyId ? () => getReservation(proposalConstituencyId) : null,
@@ -290,8 +315,6 @@ export default function NewPositionModal({ onCreate }) {
 
   const openSlots = (p) => p.max_proposals - p.proposed_cnt
 
-  const isValid = electionTypeId && assemblyId && proposalConstituencyId && position
-
   const step1Done = !!electionTypeId
   const step2Done = step1Done && !!assemblyId
   const step3Done = step2Done && !!proposalConstituencyId
@@ -328,23 +351,54 @@ export default function NewPositionModal({ onCreate }) {
     setPositionId('')
   }
 
-  const handleCreate = () => {
-    if (!isValid) return
-    onCreate({
-      kind: 'nominated',
-      electionType,
-      assembly: assemblyName,
-      location: locationName,
-      dept: electionType,
-      title: assemblyName,
-      role: position.role_name.toUpperCase(),
-      seats: position.max_positions,
-      proposalConstituencyId: Number(proposalConstituencyId),
-      proposalConstituencyName,
-      proposalPositionId: position.proposal_position_id,
-      maxProposals: position.max_proposals,
-      reservation,
-    })
+  // Picking a different role invalidates the search below it — S12's pool is
+  // per constituency, but the selection and any assign result are per position.
+  const selectPosition = (id) => {
+    setPositionId(id)
+    setResults([])
+    setSearched(false)
+    setSelectedCadreId(null)
+    setError('')
+    setAssigned('')
+  }
+
+  const runSearch = async () => {
+    if (!searchValue.trim()) return
+    setBusy(true)
+    setError('')
+    setAssigned('')
+    setSelectedCadreId(null)
+    try {
+      setResults(await searchCadre(proposalConstituencyId, searchType, searchValue.trim()))
+    } catch (err) {
+      setResults([])
+      setError(err.message)
+    } finally {
+      setSearched(true)
+      setBusy(false)
+    }
+  }
+
+  // S11 re-checks eligibility and the slot count on write, so its {detail} text
+  // is the real reason a proposal was refused.
+  const handleAssign = async () => {
+    if (!selectedCadreId) return
+    const cadre = results.find((c) => c.tdp_cadre_id === selectedCadreId)
+    setBusy(true)
+    setError('')
+    try {
+      await assignCandidate(position.proposal_position_id, selectedCadreId)
+      setAssigned(`${cadre.member_name} assigned to ${position.role_name}.`)
+      setResults([])
+      setSearched(false)
+      setSearchValue('')
+      setSelectedCadreId(null)
+      setPositionsKey((k) => k + 1)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -526,7 +580,7 @@ export default function NewPositionModal({ onCreate }) {
                       className={`leap-position-card ${positionId === String(row.proposal_position_id) ? 'selected' : ''}`}
                       disabled={open <= 0}
                       title={open <= 0 ? 'Position has reached its maximum proposals' : undefined}
-                      onClick={() => setPositionId(String(row.proposal_position_id))}
+                      onClick={() => selectPosition(String(row.proposal_position_id))}
                     >
                       <span className="leap-position-card-name">{row.role_name}</span>
                       <span className="leap-position-card-badges">
@@ -543,12 +597,80 @@ export default function NewPositionModal({ onCreate }) {
         )}
 
         {step5Done && (
-        <div className="leap-modal-footer">
-          <div className="leap-modal-summary">
-            {electionType} · {assemblyName} · {locationName} · {proposalConstituencyName} · {position.role_name}
+        <div className="leap-modal-step">
+          <div className="leap-modal-step-header">
+            <span className="num">6</span><b>Cadre Search</b>
+            <p>
+              Search cadre eligible for <b>{position.role_name}</b> in {proposalConstituencyName}
+              {reservation ? ` · ${reservation}` : ''} · {openSlots(position)} proposal slot
+              {openSlots(position) !== 1 ? 's' : ''} left.
+            </p>
           </div>
-          <div className="leap-modal-actions">
-            <button className="leap-create-btn" disabled={!isValid} onClick={handleCreate}>✓ Create Position</button>
+
+          <div className="leap-cadre-search-row">
+            <Dropdown value={searchType} onChange={setSearchType} options={SEARCH_TYPES} />
+            <input
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') runSearch() }}
+              placeholder="Search…"
+            />
+            <button
+              type="button"
+              className="leap-btn-primary"
+              disabled={busy || !searchValue.trim()}
+              onClick={runSearch}
+            >
+              {busy ? 'Searching…' : 'Search'}
+            </button>
+          </div>
+
+          {error && <div className="leap-form-error">{error}</div>}
+          {assigned && <div className="leap-form-success">✓ {assigned}</div>}
+
+          {searched && (
+            <div className="leap-cadre-results">
+              {results.length === 0 && !error && (
+                <div className="leap-empty">
+                  No eligible cadre in {proposalConstituencyName} matched that search.
+                </div>
+              )}
+              {results.slice(0, MAX_RESULTS).map((c) => (
+                <button
+                  type="button"
+                  key={c.tdp_cadre_id}
+                  className={`leap-cadre-result ${selectedCadreId === c.tdp_cadre_id ? 'selected' : ''}`}
+                  onClick={() => setSelectedCadreId(c.tdp_cadre_id)}
+                >
+                  <span className="leap-cadre-radio">{selectedCadreId === c.tdp_cadre_id ? '●' : '○'}</span>
+                  <span className="leap-cadre-body">
+                    <span className="leap-cadre-name">{c.member_name}</span>
+                    <span className="leap-cadre-meta">{memberIds(c)}</span>
+                    <span className="leap-cadre-meta">
+                      {[c.gender, c.age && `${c.age} yrs`, c.category_name, c.caste_name]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </span>
+                  </span>
+                </button>
+              ))}
+              {results.length > MAX_RESULTS && (
+                <div className="leap-field-hint">
+                  Showing the first {MAX_RESULTS} of {results.length} matches — refine your search.
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="leap-modal-actions-row">
+            <button
+              type="button"
+              className="leap-btn-primary"
+              disabled={busy || !selectedCadreId}
+              onClick={handleAssign}
+            >
+              {busy ? 'Assigning…' : 'Assign Candidate'}
+            </button>
           </div>
         </div>
         )}

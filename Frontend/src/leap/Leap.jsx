@@ -6,8 +6,6 @@ import PositionDetail from './components/PositionDetail.jsx'
 import NewPositionModal from './components/NewPositionModal.jsx'
 import './Leap.css'
 
-let _newId = 1000
-
 export default function Leap() {
   const [positions, setPositions] = useState(POSITIONS)
   const [view, setView] = useState({ name: 'newPosition' })
@@ -20,42 +18,13 @@ export default function Leap() {
     )
   }
 
-  const createPosition = ({
-    kind, electionType, assembly, location, dept, title, role, seats,
-    proposalConstituencyId, proposalConstituencyName, proposalPositionId, maxProposals, reservation,
-  }) => {
-    _newId += 1
-    const newPos = {
-      id: `pos-new-${_newId}`,
-      kind,
-      dept,
-      state: positions[0]?.state,
-      level: electionType,
-      assembly,
-      location,
-      title,
-      role,
-      seats,
-      seatsFilled: 0,
-      stageIndex: 0,
-      candidates: [],
-      proposalConstituencyId,
-      proposalConstituencyName,
-      proposalPositionId,
-      maxProposals,
-      reservation,
-    }
-    setPositions((prev) => [newPos, ...prev])
-    setView({ name: 'detail', id: newPos.id })
-  }
-
   const activePosition = view.name === 'detail' ? positions.find((p) => p.id === view.id) : null
 
   return (
     <div className="leap-app">
       <Sidebar />
       <main className="leap-main">
-        {view.name === 'newPosition' && <NewPositionModal onCreate={createPosition} />}
+        {view.name === 'newPosition' && <NewPositionModal />}
         {view.name === 'positions' && (
           <AllPositions
             positions={positions}

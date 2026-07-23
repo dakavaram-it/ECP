@@ -15,13 +15,17 @@ npm run preview      # serve the built output on 0.0.0.0:9001
 
 There is no test runner, linter, or formatter configured — do not assume `npm test` or `npm run lint` exist. Verification means building (`npm run build`) and clicking through in the browser.
 
+`vite.config.js` proxies `/api/*` to `http://127.0.0.1:8001` with the `/api` prefix stripped, configured identically for `dev` and `preview`, so the backend must be running too (`Backend/README.md` has the uvicorn command and the `.env` requirement). **When it isn't, every picklist is silently empty** — `useList` swallows fetch errors, so a dead backend looks exactly like a state with no assemblies in it. Check the console and network tab first when the wizard renders but won't populate.
+
 Deployment: `Frontend/install.sh` installs deps, builds, and (re)starts the app under PM2 using `ecosystem.config.cjs` (process name `portal-frontend`, `vite preview` on port 9001). Run it from `Frontend/`.
 
 ## What this is
 
 A prototype of a nomination workflow for local body elections, styled as a party internal portal. React 18 + Vite SPA, plain JSX with hand-written CSS, backed by a FastAPI + PyMySQL service in `Backend/` (see `Backend/README.md` for the endpoint table). **No router, no tests, no state library.** The only frontend deps are `react` and `react-dom`.
 
-The reachable flow is backend-driven end to end: picklists, reservation, positions, cadre search, and candidate assignment all hit the database, and proposed candidates persist across reloads. What stays in memory is the *position wrapper* `Leap.jsx` builds on create (stage index, title, seat labels) — that resets on reload; the `proposal_position_id` it carries is what makes the candidate list durable.
+The reachable flow is backend-driven end to end and holds **no application state of its own**: picklists, reservation, positions, cadre search, candidate assignment and the member list all hit the database, keyed by ids the user picks. Nothing survives in memory across a reload except the wizard's own selections, and nothing needs to — `proposal_position_id` is the only handle the writes use.
+
+**The entire reachable app is `Sidebar` + `NewPositionModal`.** `NewPositionModal` is a single scrolling screen that does everything (pick a body → view its members, or add one), takes no props, and never navigates. Everything else in `leap/` — the `positions` dataset, `PositionDetail`, `AllPositions`, `PositionCard`, `Dashboard`, and the whole `STAGES` pipeline — is unreachable. See "Known dead / inert code".
 
 Two top-level screens, switched by a boolean in `Frontend/src/App.jsx`:
 - `Frontend/src/Login.jsx` — visual-only login. `handleSubmit` accepts *any* credentials, `console.log`s the username/password, and calls `onLoginSuccess()`. There is no auth.
@@ -29,44 +33,63 @@ Two top-level screens, switched by a boolean in `Frontend/src/App.jsx`:
 
 ## The `leap/` module
 
-`Leap.jsx` owns all application state and acts as the ad-hoc router:
-- `positions` — the entire dataset, seeded from `POSITIONS` in `data.js`, mutated only through `createPosition` / `advanceStage` defined there. Candidates are *not* in this state: `PositionDetail` loads them from the backend.
-- `view` — a discriminated object (`{ name: 'newPosition' | 'positions' | 'detail', id?, filter? }`). Adding a screen means adding a `view.name` branch, not a route.
+`Leap.jsx` is a 48-line ad-hoc router around a `view` discriminated object (`{ name: 'newPosition' | 'positions' | 'detail', id?, filter? }`). Adding a screen means adding a `view.name` branch, not a route.
 
-**Initial view is `newPosition`**, so after login the user lands directly on the creation wizard, and "← Back" from a detail page returns there. There is no list screen in the reachable flow.
-
-Local position IDs come from module-level counters (`_newId` in `Leap.jsx`; `_cid`, `_phone`, `_pid` in `data.js`). Backend IDs (`proposalConstituencyId`, `proposalPositionId`, `assemblyId`) are carried on the position object and are what every API call keys off.
+**`view` starts at `newPosition` and nothing ever changes it.** The only `setView` calls live inside props passed to `AllPositions` and `PositionDetail`, neither of which renders. `Leap.jsx` still holds `positions` (seeded from `POSITIONS`) and `advanceStage` for those two branches; both are effectively dead. `createPosition` was removed when the wizard stopped producing positions — nothing constructs a local position object any more, so the `_newId` counter is gone too.
 
 ### Screens
 
 | Component | Reached via | Notes |
 |---|---|---|
-| `NewPositionModal` | `view.name === 'newPosition'` (initial) | 6-step wizard, each step revealed only when the previous is filled |
-| `PositionDetail` | `view.name === 'detail'` after create or open | Stage tabs, candidate list (S13), "Add Candidate" cadre-search modal (S12 → S11) |
+| `NewPositionModal` | `view.name === 'newPosition'` (initial, and permanent) | The whole app. 6 steps, each revealed only when the previous is filled |
+| `Sidebar` | always | Static; the single nav button has no handler |
+| `PositionDetail` | `view.name === 'detail'` | **Unreachable** — nothing sets this view since `createPosition` was removed |
 | `AllPositions` | `view.name === 'positions'` | **Unreachable** — nothing sets this view |
 | `PositionCard` | rendered by `AllPositions` | therefore also unreachable |
-| `Sidebar` | always | Static; the single nav button has no handler |
 
-`NewPositionModal` always creates `kind: 'nominated'` positions and maps its wizard fields oddly onto the position shape: `electionType` → both `dept` and `level`, `assembly` → `title`. Its steps resolve, in order: S1 election types → S2 assemblies → S3/S4 mandals+towns → S5/S6 proposal constituency → S9 reservation + S7 positions. The mandal/town `<select>` shares one list for two endpoints, so its option values are tagged `m:<tehsil_id>` / `t:<town_id>` — keep that encoding if you touch step 3.
+### `NewPositionModal` (694 lines — read it before changing anything here)
 
-`PositionDetail` branches on `stage.key === 'profiles'` (stage 0) for the "add candidates" layout and falls through to a review layout for every other stage. Both branches render the S13 list; the `reloadKey` state is bumped after a successful S11 assign to re-run it.
+Six steps, rendered top to bottom in one scrolling panel, each gated on `stepNDone`:
 
-Candidates use the **backend cadre shape** everywhere (`member_name`, `membership_id`, `mobile_no`, `category_name`, `mandal_town_name`, …) — not the `data.js` `candidate()` shape (`name`, `score`, `idNo`, `phone`). The seeded `POSITIONS` candidates are in the old shape and would render blank, but no reachable view shows them.
+1. **Election type** — S1, as a grid of icon chips. Icons are inline SVG components in this file, keyed by `election_type` name in `ELECTION_TYPE_ICONS`; an unknown name falls back to `IconHouse`. A new election type in the DB shows up with the house icon until you add one.
+2. **Assembly** — S2, `searchable` (the list is every assembly in the state).
+3. **Mandal/Town** — S3 + S4 merged into one picklist. The two halves resolve through different endpoints, so option values are tagged `m:<tehsil_id>` / `t:<town_id>` and split back apart by `locationKey.split(':')` — keep that encoding.
+4. **Local body** — S5 (for `m:`) or S6 (for `t:`). Its heading is `localBodyLabel`, i.e. the step-1 election type name. Auto-selects when exactly one row comes back.
+5. **Reservation & Members** — S9 for the reservation badge, S7 for the roles, then a fork: **View Members** or **Add Members**.
+6. **Cadre search** — S12 search, S11 assign. Only rendered in the `add` branch, once a role is picked.
+
+Selecting anything at step *N* clears steps *N+1…6* (the `select*` handlers). Picking a different role additionally clears the search results, selection, error and success text.
+
+**View Members** fans S13 out over every role from S7 (`Promise.all`, one call per role) and renders each cadre as a card: photo, name, relative, membership id, plus the fields in `MEMBER_FIELDS`. `img_url` is an S3 URL built by S12/S13 and is `''` when the cadre has no photo — the card falls back to `initials()`. Clicking a photo opens the `zoomed` lightbox. `members[id] === undefined` means S13 is still in flight, `[]` means it returned none; the two render differently.
+
+**Add Members** shows the roles as cards, disabled when `max_proposals - proposed_cnt <= 0`, then the search row. Results are capped at `MAX_RESULTS` (50) with a "refine your search" hint — a `Name` search is a substring match over the whole constituency and routinely returns thousands. After a successful assign, `positionsKey` is bumped so S7 re-reads and the open-slot counts update in place.
+
+`Dropdown` is a hand-rolled replacement for `<select>`, used by steps 2/3/4 and the search-type picker. It exists because Chrome flips a long native popup *upward*; this one always drops below. `searchable` adds a filter input (step 2 only). It closes on outside `mousedown` and on Escape.
+
+Candidates use the **backend cadre shape** everywhere (`member_name`, `membership_id`, `mobile_no`, `category_name`, `panchayat_name`, `mandal_town_name`, `img_url`, …) — not the `data.js` `candidate()` shape (`name`, `score`, `idNo`, `phone`).
+
+### `PositionDetail` (unreachable)
+
+Branches on `stage.key === 'profiles'` (stage 0) for an "add candidates" layout and falls through to a review layout otherwise. Both render the S13 list, with `reloadKey` bumped after a successful S11 assign. It is a second, older implementation of what step 5/6 of the wizard now do — if you change assign behaviour, decide whether to update it or delete it rather than leaving the two to drift.
 
 ### `Frontend/src/leap/data.js`
 
 Central source of both the seed dataset and the domain vocabulary. It exports:
 - Config constants (`STATE_NAME`, `PARTY_NAME`, `PARTY_SHORT`, `TERM_LABEL`).
 - `STAGES` / `STAGE_COLORS` — the nomination pipeline (see the stage caveat below).
-- Picklists (`AP_ASSEMBLIES`, `AP_MANDAL_TOWNS`) — now dead: both screens get these from S2/S3/S4.
+- Picklists (`AP_ASSEMBLIES`, `AP_MANDAL_TOWNS`) — the live screen gets these from S2/S3/S4 instead.
 - `POSITIONS` — 16 seeded positions (8 `nominated`, 8 `committee`) with procedurally generated candidates. `makeCandidate` uses `Math.random()` at module load, so scores/points differ between reloads.
 - Derived helpers `stagesFor`, `stageCounts`, `summary` — pure functions over a positions array.
 
-All seed data is fictional; real Andhra Pradesh place names appear only as picklist values.
+**Only `PARTY_SHORT` still reaches the screen**, via `Sidebar`. Everything else in this file is imported solely by unreachable components. All seed data is fictional; real Andhra Pradesh place names appear only as picklist values.
+
+### `Frontend/src/leap/api.js`
+
+One thin `get`/`post` pair over `/api/*` (Vite proxies it), one named function per endpoint, plus `useList(load, deps)` — the hook every picklist uses. `useList` returns `[]` until the promise resolves **and `[]` again on failure**, logging the error rather than surfacing it: a failed picklist is indistinguishable from an empty one in the UI. `post` unwraps FastAPI's `{detail: "..."}` into the thrown `Error.message`, which is what the S11 error banner shows.
 
 ## Traps to know before editing
 
-**The stage pipeline is truncated.** `STAGES` has only 2 entries (`profiles`, `approval`) while the rest of the code still assumes a 5–7 stage pipeline. Concretely:
+**The stage pipeline is truncated — and now entirely inside dead code.** `STAGES` has only 2 entries (`profiles`, `approval`) while its consumers still assume a 5–7 stage pipeline. None of them render today, so none of this is a live bug; it is a landmine for anyone restoring those screens. Concretely:
 - `stagesFor(kind)` returns `STAGES.slice(0, 5)` for committees, which with 2 entries is the *same* array as for nominated — the kind distinction is currently a no-op.
 - Seed `stage:` values go up to 5, so most positions have a `stageIndex` outside `STAGES`.
 - `PositionCard` does `STAGES[position.stageIndex].full` unguarded — this **throws** for any position with `stageIndex >= 2`. It is only invisible because `AllPositions` is unreachable. Restoring that view without fixing this will crash the render.
@@ -75,6 +98,8 @@ All seed data is fictional; real Andhra Pradesh place names appear only as pickl
 - `PositionDetail` guards with `stages[viewStage] || stages[stages.length - 1]`, so it degrades rather than crashing.
 
 If you touch `STAGES`, check every one of the consumers above.
+
+**"Step N" and "SN" are different numbering schemes and no longer line up.** `S1`…`S13` are backend endpoints; steps 1–6 are the wizard's visible sections. Wizard step 3 calls S3+S4, step 4 calls S5 *or* S6, step 5 calls S9+S7+S13, step 6 calls S12+S11. Say which you mean.
 
 **Only one path through the wizard reaches live data.** The database holds exactly one
 `proposal_consituency` row, reachable only via **ACHANTA (`constituency_id` 181) →
@@ -107,8 +132,15 @@ assigned, and filtering it would desync the list from `S7`'s `proposed_cnt`.
 **A "proposal constituency" is the local body being contested** — for this data a
 *panchayat* (`VALLURU`, `constituency_id` 58153, `election_scope_id` 33), one level below
 the mandal. Positions and reservation hang off it, not off the mandal, which is why
-step 3 has a second select. Its label is the step-1 election type name
+step 4 exists at all. Its heading is the step-1 election type name
 (`localBodyLabel`), and it auto-selects when the mandal resolves to exactly one body.
+
+**`NewPositionModal` is neither new-position nor a modal.** The name, the `leap-modal-*`
+class prefix, and its own heading ("Create a new post for the local body election") all
+date from when it was a creation wizard that handed a position back to `Leap.jsx`. It now
+proposes candidates against positions that already exist in the database and creates
+nothing. Renaming it means touching the class names too, so it has been left alone —
+just don't read the name as a description.
 
 **Branding is not actually centralized.** The CLAUDE-visible intent is that `data.js` drives naming, but `Sidebar.jsx` and `Login.jsx` hardcode "Telugu Desam Party" and `index.html` hardcodes a TDP title, while `PARTY_NAME` in `data.js` says "Praja Vikas Party". Changing one does not change the others — grep for both strings.
 
@@ -116,18 +148,30 @@ step 3 has a second select. Its label is the step-1 election type name
 
 ## Styling
 
-`Frontend/src/leap/Leap.css` (~1440 lines) holds every class for the leap module; `Login.css` (~180) covers the login screen; `index.css` is a 17-line reset. Classes are flat and prefixed `leap-`. No CSS modules, no utility framework — add styles to the existing file matching the surrounding naming. Fonts (Montserrat, Inter) load from Google Fonts in `index.html`.
+`Frontend/src/leap/Leap.css` (~1820 lines) holds every class for the leap module; `Login.css` (~180) covers the login screen; `index.css` is a 17-line reset. Classes are flat and prefixed `leap-`. No CSS modules, no utility framework — add styles to the existing file matching the surrounding naming. Fonts (Montserrat, Inter) load from Google Fonts in `index.html`.
+
+A large share of the file styles components that no longer render (`.leap-card-*`, `.leap-stage-*`, `.leap-candidate-*`, `.leap-cadre-search-modal`, `.leap-detail-*`, …). Grep the JSX before assuming a rule is live — and before deleting one, since the dead components still reference them.
 
 ## Known dead / inert code
 
-Mention rather than silently remove:
-- `Frontend/src/leap/components/Dashboard.jsx` (~167 lines) is not imported anywhere.
-- `AllPositions` and `PositionCard` are unreachable (see table above). `AllPositions`'s `onNewPosition` prop is never passed, and it renders `st.nomOnly`, a field `STAGES` entries no longer have.
-- `stageCounts` and `TERM_LABEL` are exported from `data.js` but used only by the dead `Dashboard`.
-- `Frontend/src/circle.svg` is used only by the login screen.
+This is now most of the `leap/` module — 630 of its ~1400 JSX lines. Mention rather
+than silently remove:
+
+- **`PositionDetail.jsx` (339 lines) became unreachable** when `createPosition` was dropped
+  from `Leap.jsx`. It is still imported and still the only other caller of `searchCadre` /
+  `assignCandidate` / `getProposalCandidates`.
+- `AllPositions` and `PositionCard` are unreachable (see table above). `AllPositions`'s
+  `onNewPosition` prop is never passed, and it renders `st.nomOnly`, a field `STAGES`
+  entries no longer have.
+- `Frontend/src/leap/components/Dashboard.jsx` (167 lines) is not imported anywhere.
+- In `Leap.jsx`: the `positions` state, `advanceStage`, `openPosition` and the `POSITIONS`
+  import exist only to feed the two unreachable branches.
+- `data.js` is dead except `PARTY_SHORT`: `STAGES`, `STAGE_COLORS`, `stagesFor`,
+  `stageCounts`, `summary`, `POSITIONS`, `TERM_LABEL`, `STATE_NAME`, `PARTY_NAME`,
+  `AP_ASSEMBLIES`, `AP_MANDAL_TOWNS` are all imported only by unreachable components,
+  as are the seeded candidates' fields (`score`, `idNo`, `casteCommunityPct`, `appPoints`, …).
 - `PositionDetail` imports `STAGES` without using it (pre-dates the backend wiring).
-- `AP_ASSEMBLIES`, `AP_MANDAL_TOWNS`, `PARTY_NAME` and the seeded candidates' fields
-  (`score`, `idNo`, `casteCommunityPct`, `appPoints`, …) lost their last JSX consumer
-  when the candidate form was replaced by cadre search. `data.js` still exports them.
+- `checkPositionAvailability` (S10) is exported from `api.js` and called by nothing.
+- `Frontend/src/circle.svg` is used only by the login screen.
 - `Backend` `S8` and `S10` are unused by the frontend; `S7` already carries the role
   names and the counts that make both redundant.
