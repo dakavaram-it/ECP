@@ -1281,6 +1281,247 @@
   border-radius: 999px;
 }
 
+/* ---------- Reservation & Members ---------- */
+.leap-reservation-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 12px 16px;
+}
+
+.leap-reservation-place b {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.leap-reservation-place span {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.leap-reservation-badge {
+  background: #fff1f0;
+  color: #c8291e;
+  border: 1px solid #f6cfcc;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 6px 14px;
+  border-radius: 999px;
+}
+
+.leap-reservation-badge.open {
+  background: #f1f5f9;
+  color: #475569;
+  border-color: #e2e8f0;
+}
+
+.leap-members-view {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.leap-members-group {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.leap-members-group-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 10px 14px;
+}
+
+.leap-members-role {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f172a;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.leap-members-count {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.leap-members-badge {
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.leap-members-badge.full {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.leap-members-seats {
+  margin-left: auto;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.leap-members-empty {
+  padding: 14px;
+  font-size: 12.5px;
+  color: #94a3b8;
+}
+
+/* Three members to a row; the card is the unit, so it stretches to fill. */
+.leap-member-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 14px;
+}
+
+.leap-member-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  padding: 12px;
+}
+
+.leap-member-card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.leap-member-photo {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: #eef2f7;
+  flex: none;
+  display: block;
+}
+
+.leap-member-photo.initials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.leap-member-photo-btn {
+  border: none;
+  background: none;
+  padding: 0;
+  border-radius: 10px;
+  cursor: zoom-in;
+  flex: none;
+  line-height: 0;
+}
+
+.leap-member-photo-btn:hover .leap-member-photo {
+  box-shadow: 0 0 0 3px rgba(15, 157, 110, 0.25);
+}
+
+.leap-photo-viewer {
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px 24px;
+  max-width: 460px;
+  width: 100%;
+}
+
+.leap-photo-viewer-img {
+  display: block;
+  width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+  border-radius: 12px;
+  background: #f1f5f9;
+}
+
+.leap-member-headline {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.leap-member-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.leap-member-relative {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.leap-member-id {
+  align-self: flex-start;
+  margin-top: 2px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+
+.leap-member-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.leap-member-detail-grid > div {
+  background: #f8fafc;
+  border: 1px solid #eef2f7;
+  border-radius: 8px;
+  padding: 7px 10px;
+  min-width: 0;
+}
+
+.leap-member-detail-grid span {
+  display: block;
+  font-size: 9.5px;
+  color: #94a3b8;
+  letter-spacing: 0.04em;
+  margin-bottom: 3px;
+}
+
+.leap-member-detail-grid b {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #0f172a;
+  overflow-wrap: anywhere;
+}
+
 .leap-chip-list {
   display: flex;
   flex-wrap: wrap;
@@ -1318,6 +1559,17 @@
   min-width: 150px;
 }
 
+/* Election types are a fixed 4-across card grid, not a wrapping chip run. */
+.leap-chip-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.leap-chip-grid .leap-chip-option {
+  text-align: left;
+}
+
 .leap-chip-icon {
   display: inline-flex;
   vertical-align: middle;
@@ -1334,15 +1586,32 @@
   color: #0f9d6e;
 }
 
+/* Assembly / Mandal-Town-District / local body sit on one line, always all three. */
 .leap-modal-step-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 20px;
-  align-items: flex-start;
+  align-items: stretch;
 }
 
 .leap-modal-step-row .leap-modal-step {
-  flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.leap-modal-step-row .leap-modal-step select {
+  margin-top: auto;
+}
+
+.leap-modal-step.locked {
+  opacity: 0.6;
+}
+
+.leap-modal-step select:disabled {
+  background: #f8fafc;
+  color: #94a3b8;
+  cursor: not-allowed;
 }
 
 .leap-position-card-list {
@@ -1422,16 +1691,10 @@
   gap: 12px;
 }
 
-.leap-modal-validation {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  font-size: 12px;
-  color: #dc2626;
-}
-
-.leap-modal-validation .ok {
-  color: #10b981;
+.leap-modal-summary {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #0f9d6e;
 }
 
 .leap-modal-actions {
