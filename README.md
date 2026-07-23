@@ -5,11 +5,14 @@ party internal portal.
 
 - **`Frontend/`** — React 18 + Vite SPA. No router, no state library; the only
   runtime deps are `react` and `react-dom`.
-- **`Backend/`** — FastAPI + PyMySQL read-only API, used to populate the
-  election-type / constituency / mandal / town picklists.
+- **`Backend/`** — FastAPI + PyMySQL API backing the whole nomination flow: picklists,
+  proposal constituencies, reservation, positions, cadre search, and candidate
+  assignment.
 
-Most application data is still in-memory seed data (`Frontend/src/leap/data.js`) and
-resets on reload. Only the picklists come from the database.
+The wizard's selections and the candidates proposed for a position all come from the
+database, and assignments persist. What still resets on reload is the position wrapper
+the frontend builds around them (stage index, labels) plus the unreachable seed data in
+`Frontend/src/leap/data.js`.
 
 ## Setup
 
@@ -90,7 +93,7 @@ Frontend/
       components/      NewPositionModal, PositionDetail, Sidebar, ...
       Leap.css         every class for the module
 Backend/
-  main.py              four GET endpoints (S1–S4), see Backend/README.md
+  main.py              S1–S13, see Backend/README.md
 .env                   DB credentials, read by Backend/main.py
 ```
 

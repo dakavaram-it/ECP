@@ -7,7 +7,6 @@ import NewPositionModal from './components/NewPositionModal.jsx'
 import './Leap.css'
 
 let _newId = 1000
-let _candId = 5000
 
 export default function Leap() {
   const [positions, setPositions] = useState(POSITIONS)
@@ -21,7 +20,10 @@ export default function Leap() {
     )
   }
 
-  const createPosition = ({ kind, electionType, assembly, location, dept, title, role, seats }) => {
+  const createPosition = ({
+    kind, electionType, assembly, assemblyId, location, dept, title, role, seats,
+    proposalConstituencyId, proposalPositionId, maxProposals, reservation,
+  }) => {
     _newId += 1
     const newPos = {
       id: `pos-new-${_newId}`,
@@ -30,6 +32,7 @@ export default function Leap() {
       state: positions[0]?.state,
       level: electionType,
       assembly,
+      assemblyId,
       location,
       title,
       role,
@@ -37,18 +40,13 @@ export default function Leap() {
       seatsFilled: 0,
       stageIndex: 0,
       candidates: [],
+      proposalConstituencyId,
+      proposalPositionId,
+      maxProposals,
+      reservation,
     }
     setPositions((prev) => [newPos, ...prev])
     setView({ name: 'detail', id: newPos.id })
-  }
-
-  const addCandidate = (positionId, candidate) => {
-    _candId += 1
-    setPositions((prev) =>
-      prev.map((p) =>
-        p.id === positionId ? { ...p, candidates: [...p.candidates, { ...candidate, id: `cand-${_candId}` }] } : p
-      )
-    )
   }
 
   const activePosition = view.name === 'detail' ? positions.find((p) => p.id === view.id) : null
@@ -73,7 +71,6 @@ export default function Leap() {
             onBack={() => setView({ name: 'newPosition' })}
             onAdvance={() => advanceStage(activePosition.id, 1)}
             onRetreat={() => advanceStage(activePosition.id, -1)}
-            onAddCandidate={(candidate) => addCandidate(activePosition.id, candidate)}
           />
         )}
       </main>

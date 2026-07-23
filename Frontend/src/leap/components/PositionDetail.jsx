@@ -1,30 +1,17 @@
 import { useState } from 'react'
-import { STAGES, STAGE_COLORS, stagesFor, PARTY_NAME } from '../data.js'
-import { getAssemblies, getMandals, useList } from '../api.js'
+import { STAGES, STAGE_COLORS, stagesFor } from '../data.js'
+import { searchCadre, assignCandidate, getProposalCandidates, useList } from '../api.js'
 
-const GENDERS = ['Male', 'Female', 'Other']
-const CASTE_CATEGORIES = ['OC', 'BC', 'SC', 'ST']
-const CASTE_SUBCASTES = {
-  OC: ['Kamma', 'Reddy', 'Kapu', 'Brahmin', 'Vaishya'],
-  BC: ['Weaver community', 'Fisherman community', 'Yadava', 'Kummari'],
-  SC: ['Mala', 'Madiga'],
-  ST: ['Konda Reddy', 'Sugali', 'Yerukala'],
-}
-const OCCUPATIONS = ['Politician', 'Business', 'Farmer', 'Government Employee', 'Private Employee', 'Other']
-const EDUCATIONS = ['Below 10th', '10th', 'Intermediate', 'Graduate', 'Post Graduate']
-const PARTIES = [PARTY_NAME, 'Independent', 'Other']
-const PARLIAMENTS = [
-  'Srikakulam', 'Vizianagaram', 'Visakhapatnam', 'Anakapalli', 'Kakinada', 'Amalapuram',
-  'Rajahmundry', 'Narasapuram', 'Eluru', 'Machilipatnam', 'Vijayawada', 'Guntur',
-  'Narasaraopet', 'Bapatla', 'Ongole', 'Nandyal', 'Kurnool', 'Anantapur',
-  'Hindupur', 'Kadapa', 'Nellore', 'Chittoor', 'Rajampet', 'Tirupati',
+// Values must match the backend's CADRE_SEARCH_FILTERS keys.
+const SEARCH_TYPES = [
+  { value: 'Name', label: 'Name' },
+  { value: 'MembershipId', label: 'Membership ID' },
+  { value: 'MobileNo', label: 'Mobile No' },
 ]
 
-const EMPTY_CANDIDATE_FORM = {
-  name: '', mobile: '', gender: '', age: '', dob: '',
-  casteCategory: '', casteSub: '', occupation: '', education: '', party: '',
-  parliament: '', assembly: '', mandal: '',
-}
+// A name search is a substring match over the whole constituency and routinely
+// returns four figures of rows; only the first page gets rendered.
+const MAX_RESULTS = 50
 
 function IconPeople() {
   return (
@@ -47,83 +34,119 @@ function initials(name) {
     .toUpperCase()
 }
 
+// Both the assigned list (S13) and the search results (S12) return the same
+// cadre fields, so these two render off one shape.
+function cadreDetail(c) {
+  return [c.gender, c.age && `${c.age} yrs`, c.category_name, c.caste_name].filter(Boolean).join(' · ')
+}
+
+function cadrePlace(c) {
+  return [c.constituency_name, c.mandal_town_name].filter(Boolean).join(' · ')
+}
+
 function CandidateCard({ candidate, role }) {
   return (
     <div className="leap-candidate-card">
       <div className="leap-candidate-top">
-        <span className="leap-candidate-avatar">{initials(candidate.name)}</span>
+        {candidate.img_url
+          ? <img className="leap-candidate-avatar" src={candidate.img_url} alt="" />
+          : <span className="leap-candidate-avatar">{initials(candidate.member_name)}</span>}
         <div className="leap-candidate-headline">
-          <span className="leap-candidate-score">{candidate.score}<em>SCORE</em></span>
-          {candidate.status && <span className="leap-candidate-status">✓ {candidate.status}</span>}
-          <div className="leap-candidate-name">{candidate.name}</div>
+          <div className="leap-candidate-name">{candidate.member_name}</div>
           <div className="leap-candidate-considered">Considered for <b>{role}</b></div>
           <div className="leap-candidate-contact">
-            <span>{candidate.idNo}</span>
-            <span>📞 {candidate.phone}</span>
+            <span>{candidate.membership_id || `Cadre #${candidate.tdp_cadre_id}`}</span>
+            {candidate.mobile_no && <span>📞 {candidate.mobile_no}</span>}
           </div>
+          <div className="leap-candidate-meta">{cadreDetail(candidate)}</div>
+          <div className="leap-candidate-meta">{cadrePlace(candidate)}</div>
         </div>
       </div>
     </div>
   )
 }
 
-export default function PositionDetail({ position, onBack, onAdvance, onRetreat, onAddCandidate }) {
+function CadreResult({ cadre, selected, onSelect }) {
+  return (
+    <button
+      type="button"
+      className={`leap-cadre-result ${selected ? 'selected' : ''}`}
+      onClick={onSelect}
+    >
+      <span className="leap-cadre-radio">{selected ? '●' : '○'}</span>
+      <span className="leap-cadre-body">
+        <span className="leap-cadre-name">{cadre.member_name}</span>
+        <span className="leap-cadre-meta">{cadreDetail(cadre)}</span>
+        <span className="leap-cadre-meta">
+          {[cadre.membership_id, cadre.mobile_no, cadrePlace(cadre)].filter(Boolean).join(' · ')}
+        </span>
+      </span>
+    </button>
+  )
+}
+
+export default function PositionDetail({ position, onBack, onAdvance, onRetreat }) {
   const stages = stagesFor(position.kind)
   const [viewStage, setViewStage] = useState(position.stageIndex)
   const stage = stages[viewStage] || stages[stages.length - 1]
   const isCurrent = viewStage === position.stageIndex
-  const shortlisted = position.candidates.filter((c) => !c.status).length
 
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [form, setForm] = useState(EMPTY_CANDIDATE_FORM)
+  const [showSearchModal, setShowSearchModal] = useState(false)
+  const [searchType, setSearchType] = useState('Name')
+  const [searchValue, setSearchValue] = useState('')
+  const [results, setResults] = useState([])
+  const [searched, setSearched] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [selectedCadreId, setSelectedCadreId] = useState(null)
+  const [error, setError] = useState('')
+  // Bumped after a successful assign to re-run S13.
+  const [reloadKey, setReloadKey] = useState(0)
 
-  const assemblies = useList(getAssemblies, [])
-  const mandals = useList(form.assembly ? () => getMandals(form.assembly) : null, [form.assembly])
-  const assemblyName = assemblies.find((a) => String(a.constituency_id) === form.assembly)?.constituency_name || ''
+  const candidates = useList(
+    position.proposalPositionId ? () => getProposalCandidates(position.proposalPositionId) : null,
+    [position.proposalPositionId, reloadKey]
+  )
+  const remaining = position.maxProposals - candidates.length
 
-  const openCreateModal = () => setShowCreateModal(true)
-  const closeCreateModal = () => {
-    setShowCreateModal(false)
-    setForm(EMPTY_CANDIDATE_FORM)
+  const openSearchModal = () => setShowSearchModal(true)
+  const closeSearchModal = () => {
+    setShowSearchModal(false)
+    setSearchValue('')
+    setResults([])
+    setSearched(false)
+    setSelectedCadreId(null)
+    setError('')
   }
 
-  const updateForm = (field, value) => {
-    setForm((prev) => {
-      const next = { ...prev, [field]: value }
-      if (field === 'casteCategory') next.casteSub = ''
-      if (field === 'assembly') next.mandal = ''
-      return next
-    })
+  const runSearch = async () => {
+    if (!searchValue.trim()) return
+    setBusy(true)
+    setError('')
+    setSelectedCadreId(null)
+    try {
+      setResults(await searchCadre(position.assemblyId, searchType, searchValue.trim()))
+    } catch (err) {
+      setResults([])
+      setError(err.message)
+    } finally {
+      setSearched(true)
+      setBusy(false)
+    }
   }
 
-  const handleCreateCandidate = () => {
-    if (!form.name.trim()) return
-    onAddCandidate({
-      name: form.name.trim(),
-      score: 0,
-      status: null,
-      idNo: `MEM-${Math.floor(100000 + Math.random() * 900000)}`,
-      phone: form.mobile,
-      gender: form.gender || 'Male',
-      age: form.age ? Number(form.age) : undefined,
-      dob: form.dob,
-      caste: form.casteCategory ? `${form.casteCategory}${form.casteSub ? ' · ' + form.casteSub : ''}` : '',
-      occupation: form.occupation || 'Politician',
-      education: form.education || 'Graduate',
-      parliament: form.parliament,
-      assembly: assemblyName,
-      mandal: form.mandal,
-      casteCommunityPct: 0,
-      memberSince: new Date().getFullYear(),
-      renewals: 0,
-      appPoints: 0,
-      stateRank: '-',
-      constituencyRank: '-',
-      totalCount: 0,
-      totalPosts: 0,
-      totalEvents: 0,
-    })
-    closeCreateModal()
+  const handleAssign = async () => {
+    if (!selectedCadreId) return
+    setBusy(true)
+    setError('')
+    try {
+      await assignCandidate(position.proposalPositionId, selectedCadreId)
+      setReloadKey((k) => k + 1)
+      closeSearchModal()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -149,24 +172,32 @@ export default function PositionDetail({ position, onBack, onAdvance, onRetreat,
 
       <div className="leap-position-tab">
         <span className="leap-position-tab-label">POSITIONS</span>
-        <span className="leap-position-tab-chip">{position.role} · {position.seats} seat{position.seats > 1 ? 's' : ''} · {position.candidates.length} cand <b>{String(position.stageIndex + 1).padStart(2, '0')}</b></span>
+        <span className="leap-position-tab-chip">{position.role} · {position.seats} seat{position.seats > 1 ? 's' : ''} · {candidates.length} cand <b>{String(position.stageIndex + 1).padStart(2, '0')}</b></span>
       </div>
 
       {stage.key === 'profiles' && (
         <div className="leap-detail-info-grid">
           <div><span>POSITION</span><b>{position.role}</b></div>
           <div><span>SEATS</span><b>{position.seats}</b></div>
-          <div><span>CANDIDATES ADDED</span><b>{position.candidates.length}</b></div>
+          <div><span>CANDIDATES PROPOSED</span><b>{candidates.length} / {position.maxProposals}</b></div>
           <div><span>COMMITTEE</span><b>{position.title}</b></div>
           <div><span>TYPE</span><b>{position.kind === 'nominated' ? 'Board' : 'Committee'}</b></div>
           <div><span>SUB-TYPE</span><b>{position.dept}</b></div>
           <div><span>LEVEL</span><b>{position.level} · {position.state}</b></div>
+          <div><span>RESERVATION</span><b>{position.reservation || 'Unreserved'}</b></div>
           <div><span>STATUS</span><b>{position.stageIndex === 0 ? 'DRAFT' : 'IN REVIEW'}</b></div>
-          <div><span>LAST UPDATED</span><b>Recently</b></div>
           <div>
             <span>ADD CANDIDATES</span>
             <div className="leap-add-candidates-btns">
-              <button type="button" className="leap-chip-btn-outline mid" onClick={openCreateModal}>+ Add Profile</button>
+              <button
+                type="button"
+                className="leap-chip-btn-outline mid"
+                disabled={remaining <= 0}
+                title={remaining <= 0 ? 'Position has reached its maximum proposals' : undefined}
+                onClick={openSearchModal}
+              >
+                + Add Candidate
+              </button>
             </div>
           </div>
         </div>
@@ -200,132 +231,77 @@ export default function PositionDetail({ position, onBack, onAdvance, onRetreat,
         <>
           <div className="leap-mapped-candidates-label">MAPPED CANDIDATES</div>
 
-          {position.candidates.length === 0 ? (
+          {candidates.length === 0 ? (
             <div className="leap-candidates-empty">
               <div className="leap-candidates-empty-icon"><IconPeople /></div>
-              <div className="leap-candidates-empty-title">No candidates added yet</div>
-              <div className="leap-candidates-empty-sub">Add cadre members to start building this position.</div>
+              <div className="leap-candidates-empty-title">No candidates proposed yet</div>
+              <div className="leap-candidates-empty-sub">Search the cadre register to propose a candidate for this position.</div>
               <div className="leap-candidates-empty-actions">
-                <button type="button" className="leap-btn-add-candidates" onClick={openCreateModal}>+ Add Profile</button>
+                <button type="button" className="leap-btn-add-candidates" disabled={remaining <= 0} onClick={openSearchModal}>+ Add Candidate</button>
               </div>
             </div>
           ) : (
             <div className="leap-candidate-list">
-              {position.candidates.map((c) => (
-                <CandidateCard key={c.id} candidate={c} role={position.role} />
+              {candidates.map((c) => (
+                <CandidateCard key={c.proposal_candidate_id} candidate={c} role={position.role} />
               ))}
             </div>
           )}
 
-          {showCreateModal && (
-            <div className="leap-modal-overlay" onClick={closeCreateModal}>
-              <div className="leap-create-candidate-modal" onClick={(e) => e.stopPropagation()}>
+          {showSearchModal && (
+            <div className="leap-modal-overlay" onClick={closeSearchModal}>
+              <div className="leap-cadre-search-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="leap-modal-title-row">
                   <div>
-                    <h3>Add Profile</h3>
-                    <p>Add a new candidate to this position</p>
+                    <h3>Add Candidate</h3>
+                    <p>
+                      Search cadre in {position.assembly} · {remaining} proposal slot{remaining !== 1 ? 's' : ''} left
+                      {position.reservation ? ` · reserved for ${position.reservation}` : ''}
+                    </p>
                   </div>
-                  <button type="button" className="leap-modal-close" onClick={closeCreateModal}>✕</button>
+                  <button type="button" className="leap-modal-close" onClick={closeSearchModal}>✕</button>
                 </div>
 
-                <div className="leap-create-candidate-grid">
-                  <div>
-                    <label>NAME</label>
-                    <input value={form.name} onChange={(e) => updateForm('name', e.target.value)} placeholder="Full name" />
-                  </div>
-                  <div>
-                    <label>MOBILE NO</label>
-                    <input value={form.mobile} onChange={(e) => updateForm('mobile', e.target.value)} placeholder="10-digit mobile" />
-                  </div>
-                  <div>
-                    <label>GENDER</label>
-                    <select value={form.gender} onChange={(e) => updateForm('gender', e.target.value)}>
-                      <option value="">Select…</option>
-                      {GENDERS.map((g) => <option key={g} value={g}>{g}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label>AGE</label>
-                    <input type="number" min="18" value={form.age} onChange={(e) => updateForm('age', e.target.value)} placeholder="Age" />
-                  </div>
-                  <div>
-                    <label>DATE OF BIRTH</label>
-                    <input type="date" value={form.dob} onChange={(e) => updateForm('dob', e.target.value)} />
-                  </div>
-                  <div>
-                    <label>CASTE CATEGORY</label>
-                    <select value={form.casteCategory} onChange={(e) => updateForm('casteCategory', e.target.value)}>
-                      <option value="">Select category…</option>
-                      {CASTE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label>CASTE / SUB-CASTE</label>
-                    <select
-                      value={form.casteSub}
-                      onChange={(e) => updateForm('casteSub', e.target.value)}
-                      disabled={!form.casteCategory}
-                    >
-                      <option value="">{form.casteCategory ? 'Select…' : 'Select a category first'}</option>
-                      {(CASTE_SUBCASTES[form.casteCategory] || []).map((c) => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label>OCCUPATION</label>
-                    <select value={form.occupation} onChange={(e) => updateForm('occupation', e.target.value)}>
-                      <option value="">Select occupation…</option>
-                      {OCCUPATIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label>EDUCATION</label>
-                    <select value={form.education} onChange={(e) => updateForm('education', e.target.value)}>
-                      <option value="">Select education…</option>
-                      {EDUCATIONS.map((e2) => <option key={e2} value={e2}>{e2}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label>PARTY</label>
-                    <select value={form.party} onChange={(e) => updateForm('party', e.target.value)}>
-                      <option value="">Select party…</option>
-                      {PARTIES.map((p) => <option key={p} value={p}>{p}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label>PARLIAMENT</label>
-                    <select value={form.parliament} onChange={(e) => updateForm('parliament', e.target.value)}>
-                      <option value="">Select parliament…</option>
-                      {PARLIAMENTS.map((p) => <option key={p} value={p}>{p}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label>ASSEMBLY</label>
-                    <select value={form.assembly} onChange={(e) => updateForm('assembly', e.target.value)}>
-                      <option value="">Select assembly…</option>
-                      {assemblies.map((a) => (
-                        <option key={a.constituency_id} value={a.constituency_id}>{a.constituency_name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label>MANDAL</label>
-                    <select
-                      value={form.mandal}
-                      onChange={(e) => updateForm('mandal', e.target.value)}
-                      disabled={!form.assembly}
-                    >
-                      <option value="">{form.assembly ? 'Select…' : 'Select an assembly first'}</option>
-                      {mandals.map((m) => (
-                        <option key={m.tehsil_id} value={m.tehsil_name}>{m.tehsil_name}</option>
-                      ))}
-                    </select>
-                  </div>
+                <div className="leap-cadre-search-row">
+                  <select value={searchType} onChange={(e) => setSearchType(e.target.value)}>
+                    {SEARCH_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
+                  <input
+                    value={searchValue}
+                    onChange={(e) => setSearchValue(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') runSearch() }}
+                    placeholder="Search…"
+                  />
+                  <button type="button" className="leap-btn-primary" disabled={busy || !searchValue.trim()} onClick={runSearch}>
+                    {busy ? 'Searching…' : 'Search'}
+                  </button>
+                </div>
+
+                {error && <div className="leap-form-error">{error}</div>}
+
+                <div className="leap-cadre-results">
+                  {searched && results.length === 0 && !error && (
+                    <div className="leap-empty">No cadre found in {position.assembly} for that search.</div>
+                  )}
+                  {results.slice(0, MAX_RESULTS).map((c) => (
+                    <CadreResult
+                      key={c.tdp_cadre_id}
+                      cadre={c}
+                      selected={selectedCadreId === c.tdp_cadre_id}
+                      onSelect={() => setSelectedCadreId(c.tdp_cadre_id)}
+                    />
+                  ))}
+                  {results.length > MAX_RESULTS && (
+                    <div className="leap-field-hint">
+                      Showing the first {MAX_RESULTS} of {results.length} matches — refine your search.
+                    </div>
+                  )}
                 </div>
 
                 <div className="leap-modal-actions-row">
-                  <button type="button" className="leap-btn-secondary" onClick={closeCreateModal}>Cancel</button>
-                  <button type="button" className="leap-btn-primary" disabled={!form.name.trim()} onClick={handleCreateCandidate}>
-                    Add Profile
+                  <button type="button" className="leap-btn-secondary" onClick={closeSearchModal}>Cancel</button>
+                  <button type="button" className="leap-btn-primary" disabled={busy || !selectedCadreId} onClick={handleAssign}>
+                    {busy ? 'Assigning…' : 'Assign Candidate'}
                   </button>
                 </div>
               </div>
@@ -336,7 +312,7 @@ export default function PositionDetail({ position, onBack, onAdvance, onRetreat,
         <>
           {isCurrent && (
             <div className="leap-info-banner">
-              {position.candidates.length} candidate{position.candidates.length !== 1 ? 's' : ''} assigned for <b>{position.role}</b>.
+              {candidates.length} candidate{candidates.length !== 1 ? 's' : ''} proposed for <b>{position.role}</b>.
               {position.stageIndex < stages.length - 1
                 ? <> Review the list below, then click <b>&quot;Move to Step {String(position.stageIndex + 2).padStart(2, '0')}&quot;</b> to advance.</>
                 : <> This is the final stage.</>}
@@ -348,15 +324,11 @@ export default function PositionDetail({ position, onBack, onAdvance, onRetreat,
           )}
 
           <div className="leap-candidate-list">
-            {position.candidates.length === 0 && <div className="leap-empty">No candidates added yet.</div>}
-            {position.candidates.map((c) => (
-              <CandidateCard key={c.id} candidate={c} role={position.role} />
+            {candidates.length === 0 && <div className="leap-empty">No candidates proposed yet.</div>}
+            {candidates.map((c) => (
+              <CandidateCard key={c.proposal_candidate_id} candidate={c} role={position.role} />
             ))}
           </div>
-
-          {shortlisted > 0 && position.candidates.length > 0 && (
-            <div className="leap-detail-footnote">{shortlisted} candidate{shortlisted !== 1 ? 's' : ''} still shortlisted, awaiting decision.</div>
-          )}
         </>
       )}
     </div>

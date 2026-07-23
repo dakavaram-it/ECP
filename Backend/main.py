@@ -102,28 +102,32 @@ def get_towns_in_a_constituency(constituency_id: int):
 
 
 @app.get("/S5getProposalConstituenciesByTehsilId")
-def get_proposal_constituencies_by_tehsil_id(constituency_id: int, tehsil_id: int):
+def get_proposal_constituencies_by_tehsil_id(
+    constituency_id: int, tehsil_id: int, proposal_election_type_id: int
+):
     return query(
         "SELECT PC.proposal_consituency_id, C.name AS constituency_name "
         "FROM proposal_consituency PC "
         "JOIN constituency C ON PC.constituency_id = C.constituency_id "
         "JOIN user_address UA ON PC.address_id = UA.user_address_id "
-        "WHERE PC.proposal_election_type_id = 8 AND "
+        "WHERE PC.proposal_election_type_id = %s AND "
         "UA.constituency_id = %s AND UA.tehsil_id = %s AND PC.enrollment_id = 1",
-        (constituency_id, tehsil_id),
+        (proposal_election_type_id, constituency_id, tehsil_id),
     )
 
 
 @app.get("/S6getProposalConstituenciesByTownId")
-def get_proposal_constituencies_by_town_id(constituency_id: int, town_id: int):
+def get_proposal_constituencies_by_town_id(
+    constituency_id: int, town_id: int, proposal_election_type_id: int
+):
     return query(
         "SELECT PC.proposal_consituency_id, C.name AS constituency_name "
         "FROM proposal_consituency PC "
         "JOIN constituency C ON PC.constituency_id = C.constituency_id "
         "JOIN user_address UA ON PC.address_id = UA.user_address_id "
-        "WHERE PC.proposal_election_type_id = 8 AND "
+        "WHERE PC.proposal_election_type_id = %s AND "
         "UA.constituency_id = %s AND UA.local_election_body = %s AND PC.enrollment_id = 1",
-        (constituency_id, town_id),
+        (proposal_election_type_id, constituency_id, town_id),
     )
 
 
@@ -261,7 +265,6 @@ CADRE_SEARCH_FILTERS = {
     "Name": "TC.first_name LIKE %s",
 }
 
-
 @app.get("/S12cadreSearch")
 def cadre_search(constituency_id: int, search_type: str, search_value: str):
     if search_type not in CADRE_SEARCH_FILTERS:
@@ -298,3 +301,33 @@ def cadre_search(constituency_id: int, search_type: str, search_value: str):
     )
 
 
+@app.get("/S13getProposalCandidatesByProposalPositionId")
+def get_proposal_candidates_by_proposal_position_id(proposal_position_id: int):
+    return query(
+        "SELECT PC.proposal_candidate_id, TC.tdp_cadre_id, TC.membership_id, "
+        "TC.first_name AS member_name, TC.gender, TC.age, TC.relative_name, "
+        "TC.relative_type, TC.mobile_no, CC.category_name, CT.caste_name, "
+        "C.constituency_id, C.name AS constituency_name, "
+        "CASE WHEN T.tehsil_id IS NOT NULL THEN T.tehsil_name "
+        "ELSE CONCAT(L.name, ' Town') END AS mandal_town_name, "
+        "P.panchayat_name, V.voter_id_card_no, "
+        "CASE WHEN TC.image IS NOT NULL "
+        "THEN CONCAT('https://imagesearch-projectkv.s3.amazonaws.com/cadre_images/', TC.image) "
+        "ELSE '' END AS img_url "
+        "FROM proposal_candidate PC "
+        "JOIN tdp_cadre TC ON PC.tdp_cadre_id = TC.tdp_cadre_id "
+        "JOIN user_address UA ON TC.address_id = UA.user_address_id "
+        "JOIN constituency C ON UA.constituency_id = C.constituency_id "
+        "LEFT OUTER JOIN tehsil T ON UA.tehsil_id = T.tehsil_id "
+        "LEFT OUTER JOIN local_election_body L ON UA.local_election_body = L.local_election_body_id "
+        "LEFT OUTER JOIN panchayat P ON UA.panchayat_id = P.panchayat_id "
+        "LEFT OUTER JOIN caste_state CS ON TC.caste_state_id = CS.caste_state_id "
+        "LEFT OUTER JOIN caste CT ON CS.caste_id = CT.caste_id "
+        "LEFT OUTER JOIN caste_category_group CCG "
+        "ON CS.caste_category_group_id = CCG.caste_category_group_id "
+        "LEFT OUTER JOIN caste_category CC ON CCG.caste_category_id = CC.caste_category_id "
+        "LEFT OUTER JOIN voter V ON TC.voter_id = V.voter_id "
+        "WHERE PC.proposal_position_id = %s AND PC.is_active = 'Y' "
+        "ORDER BY PC.proposal_candidate_id",
+        (proposal_position_id,),
+    )

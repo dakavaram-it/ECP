@@ -1,5 +1,15 @@
-import { useState } from 'react'
-import { getElectionTypes, getAssemblies, getMandals, getTowns, useList } from '../api.js'
+import { useEffect, useState } from 'react'
+import {
+  getElectionTypes,
+  getAssemblies,
+  getMandals,
+  getTowns,
+  getProposalConstituenciesByTehsil,
+  getProposalConstituenciesByTown,
+  getPositionsOverview,
+  getReservation,
+  useList,
+} from '../api.js'
 
 const ICON_PROPS = {
   viewBox: '0 0 24 24',
@@ -101,49 +111,104 @@ const ELECTION_TYPE_ICONS = {
   Corporation: IconFactory,
 }
 
-const RESERVATION = 'BC - General'
-
-const MEMBERS_TABLE = [
-  { position: 'President', maxProposals: 5, filledMembers: 1, maxPositions: 1 },
-  { position: 'Vice President', maxProposals: 4, filledMembers: 0, maxPositions: 1 },
-]
-
 export default function NewPositionModal({ onCreate }) {
-  const [electionType, setElectionType] = useState('')
+  const [electionTypeId, setElectionTypeId] = useState('')
   const [assemblyId, setAssemblyId] = useState('')
-  const [location, setLocation] = useState('')
+  const [locationKey, setLocationKey] = useState('')
+  const [proposalConstituencyId, setProposalConstituencyId] = useState('')
 
   const [membersAction, setMembersAction] = useState('')
 
-  const [role, setRole] = useState('President')
-  const seats = 1
+  const [positionId, setPositionId] = useState('')
 
   const electionTypes = useList(getElectionTypes, [])
   const assemblies = useList(getAssemblies, [])
   const mandals = useList(assemblyId ? () => getMandals(assemblyId) : null, [assemblyId])
   const towns = useList(assemblyId ? () => getTowns(assemblyId) : null, [assemblyId])
 
+  // Mandals and towns share one picklist but resolve through different endpoints,
+  // so the option value carries which it is: 'm:<tehsil_id>' or 't:<town_id>'.
+  const [locationType, locationId] = locationKey.split(':')
+  const proposalConstituencies = useList(
+    locationKey
+      ? () =>
+          locationType === 'm'
+            ? getProposalConstituenciesByTehsil(assemblyId, locationId, electionTypeId)
+            : getProposalConstituenciesByTown(assemblyId, locationId, electionTypeId)
+      : null,
+    [assemblyId, locationKey, electionTypeId]
+  )
+
+  const positions = useList(
+    proposalConstituencyId ? () => getPositionsOverview(proposalConstituencyId) : null,
+    [proposalConstituencyId]
+  )
+  const reservationRows = useList(
+    proposalConstituencyId ? () => getReservation(proposalConstituencyId) : null,
+    [proposalConstituencyId]
+  )
+  const reservation = reservationRows[0]?.reservation_type || ''
+
+  // A "proposal constituency" is the body the election type contests — a panchayat,
+  // a ward, a municipality. S1's names are already those words, so the step-1 choice
+  // is the label.
+  const electionType =
+    electionTypes.find((t) => String(t.proposal_election_type_id) === electionTypeId)?.election_type || ''
+  const localBodyLabel = electionType || 'Local Body'
+
+  // A mandal usually maps to exactly one of these; don't make the user pick from a
+  // list of one.
+  useEffect(() => {
+    if (proposalConstituencies.length === 1) {
+      setProposalConstituencyId(String(proposalConstituencies[0].proposal_consituency_id))
+    }
+  }, [proposalConstituencies])
+
   const assemblyName = assemblies.find((a) => String(a.constituency_id) === assemblyId)?.constituency_name || ''
+  const locationName =
+    locationType === 'm'
+      ? mandals.find((m) => String(m.tehsil_id) === locationId)?.tehsil_name || ''
+      : towns.find((t) => String(t.town_id) === locationId)?.town_name || ''
+  const position = positions.find((p) => String(p.proposal_position_id) === positionId)
 
-  const isValid = electionType && assemblyId && location && role && seats > 0
+  const openSlots = (p) => p.max_proposals - p.proposed_cnt
 
-  const step1Done = !!electionType
+  const isValid = electionTypeId && assemblyId && proposalConstituencyId && position
+
+  const step1Done = !!electionTypeId
   const step2Done = step1Done && !!assemblyId
-  const step3Done = step2Done && !!location
+  const step3Done = step2Done && !!proposalConstituencyId
   const step4Done = step3Done && !!membersAction
-  const step5Done = step4Done && membersAction === 'add' && !!role
+  const step5Done = step4Done && membersAction === 'add' && !!position
 
-  const selectElectionType = (t) => {
-    setElectionType(t)
+  const selectElectionType = (id) => {
+    setElectionTypeId(id)
     setAssemblyId('')
-    setLocation('')
+    setLocationKey('')
+    setProposalConstituencyId('')
     setMembersAction('')
-    setRole('President')
+    setPositionId('')
   }
 
   const selectAssembly = (id) => {
     setAssemblyId(id)
-    setLocation('')
+    setLocationKey('')
+    setProposalConstituencyId('')
+    setMembersAction('')
+    setPositionId('')
+  }
+
+  const selectLocation = (key) => {
+    setLocationKey(key)
+    setProposalConstituencyId('')
+    setMembersAction('')
+    setPositionId('')
+  }
+
+  const selectProposalConstituency = (id) => {
+    setProposalConstituencyId(id)
+    setMembersAction('')
+    setPositionId('')
   }
 
   const handleCreate = () => {
@@ -152,11 +217,16 @@ export default function NewPositionModal({ onCreate }) {
       kind: 'nominated',
       electionType,
       assembly: assemblyName,
-      location,
+      assemblyId: Number(assemblyId),
+      location: locationName,
       dept: electionType,
       title: assemblyName,
-      role: role.toUpperCase(),
-      seats: Number(seats),
+      role: position.role_name.toUpperCase(),
+      seats: position.max_positions,
+      proposalConstituencyId: Number(proposalConstituencyId),
+      proposalPositionId: position.proposal_position_id,
+      maxProposals: position.max_proposals,
+      reservation,
     })
   }
 
@@ -176,8 +246,8 @@ export default function NewPositionModal({ onCreate }) {
                 <button
                   type="button"
                   key={proposal_election_type_id}
-                  className={`leap-chip-option leap-chip-option-lg ${electionType === election_type ? 'selected' : ''}`}
-                  onClick={() => selectElectionType(election_type)}
+                  className={`leap-chip-option leap-chip-option-lg ${electionTypeId === String(proposal_election_type_id) ? 'selected' : ''}`}
+                  onClick={() => selectElectionType(String(proposal_election_type_id))}
                 >
                   <span className="leap-chip-icon"><Icon /></span>
                   {election_type}
@@ -204,15 +274,36 @@ export default function NewPositionModal({ onCreate }) {
           <div className="leap-modal-step">
             <div className="leap-modal-step-header"><span className="num">3</span><b>Mandal/Town/District</b><p>Narrow down to the exact local area.</p></div>
             <label>Mandal/Town/District</label>
-            <select value={location} onChange={(e) => setLocation(e.target.value)}>
+            <select value={locationKey} onChange={(e) => selectLocation(e.target.value)}>
               <option value="">Select…</option>
               {mandals.map((m) => (
-                <option key={`m-${m.tehsil_id}`} value={m.tehsil_name}>{m.tehsil_name}</option>
+                <option key={`m-${m.tehsil_id}`} value={`m:${m.tehsil_id}`}>{m.tehsil_name}</option>
               ))}
               {towns.map((t) => (
-                <option key={`t-${t.town_id}`} value={t.town_name}>{t.town_name}</option>
+                <option key={`t-${t.town_id}`} value={`t:${t.town_id}`}>{t.town_name}</option>
               ))}
             </select>
+
+            {locationKey && (
+              <>
+                <label>{localBodyLabel}</label>
+                <select
+                  value={proposalConstituencyId}
+                  onChange={(e) => selectProposalConstituency(e.target.value)}
+                  disabled={proposalConstituencies.length === 0}
+                >
+                  <option value="">Select…</option>
+                  {proposalConstituencies.map((pc) => (
+                    <option key={pc.proposal_consituency_id} value={pc.proposal_consituency_id}>
+                      {pc.constituency_name}
+                    </option>
+                  ))}
+                </select>
+                {proposalConstituencies.length === 0 && (
+                  <p className="leap-field-hint">No {localBodyLabel} is configured for this mandal/town.</p>
+                )}
+              </>
+            )}
           </div>
           )}
         </div>
@@ -221,7 +312,7 @@ export default function NewPositionModal({ onCreate }) {
         {step3Done && (
         <div className="leap-modal-step">
           <div className="leap-modal-step-header"><span className="num">4</span><b>Reservation &amp; Members</b><p>Reservation status for this constituency.</p></div>
-          <div className="leap-selected-tag">Reservation: {RESERVATION}</div>
+          <div className="leap-selected-tag">Reservation: {reservation || 'Unreserved'}</div>
           <div className="leap-chip-list">
             <button
               type="button"
@@ -245,17 +336,17 @@ export default function NewPositionModal({ onCreate }) {
                 <tr>
                   <th>Position</th>
                   <th>Max Proposals</th>
-                  <th>Filled Members</th>
+                  <th>Proposed</th>
                   <th>Max Positions</th>
                 </tr>
               </thead>
               <tbody>
-                {MEMBERS_TABLE.map((row) => (
-                  <tr key={row.position}>
-                    <td>{row.position}</td>
-                    <td>{row.maxProposals}</td>
-                    <td>{row.filledMembers}</td>
-                    <td>{row.maxPositions}</td>
+                {positions.map((row) => (
+                  <tr key={row.proposal_position_id}>
+                    <td>{row.role_name}</td>
+                    <td>{row.max_proposals}</td>
+                    <td>{row.proposed_cnt}</td>
+                    <td>{row.max_positions}</td>
                   </tr>
                 ))}
               </tbody>
@@ -269,19 +360,23 @@ export default function NewPositionModal({ onCreate }) {
           <div className="leap-modal-step-header"><span className="num">5</span><b>Select Position</b><p>Choose the role for this post.</p></div>
           <label>Role</label>
           <div className="leap-position-card-list">
-            {MEMBERS_TABLE.map((row) => {
-              const open = row.maxPositions - row.filledMembers
+            {positions.map((row) => {
+              // Matches S10's rule: a position is available while it has
+              // proposal slots left, not seats.
+              const open = openSlots(row)
               return (
                 <button
                   type="button"
-                  key={row.position}
-                  className={`leap-position-card ${role === row.position ? 'selected' : ''}`}
-                  onClick={() => setRole(row.position)}
+                  key={row.proposal_position_id}
+                  className={`leap-position-card ${positionId === String(row.proposal_position_id) ? 'selected' : ''}`}
+                  disabled={open <= 0}
+                  title={open <= 0 ? 'Position has reached its maximum proposals' : undefined}
+                  onClick={() => setPositionId(String(row.proposal_position_id))}
                 >
-                  <span className="leap-position-card-name">{row.position}</span>
+                  <span className="leap-position-card-name">{row.role_name}</span>
                   <span className="leap-position-card-badges">
-                    <span className="leap-position-card-total">{row.maxPositions}</span>
-                    <span className={`leap-position-card-open ${open === 0 ? 'zero' : ''}`}>{open} open</span>
+                    <span className="leap-position-card-total">{row.max_positions}</span>
+                    <span className={`leap-position-card-open ${open <= 0 ? 'zero' : ''}`}>{open} open</span>
                   </span>
                 </button>
               )
@@ -295,8 +390,9 @@ export default function NewPositionModal({ onCreate }) {
           <div className="leap-modal-validation">
             <span className={electionType ? 'ok' : ''}>• Election Type {electionType ? 'selected' : 'not selected'}</span>
             <span className={assemblyId ? 'ok' : ''}>• Assembly {assemblyId ? 'selected' : 'not selected'}</span>
-            <span className={location ? 'ok' : ''}>• Mandal/Town/District {location ? 'selected' : 'not selected'}</span>
-            <span className={role ? 'ok' : ''}>• Position {role ? 'set' : 'not set'}</span>
+            <span className={locationName ? 'ok' : ''}>• Mandal/Town/District {locationName ? 'selected' : 'not selected'}</span>
+            <span className={proposalConstituencyId ? 'ok' : ''}>• {localBodyLabel} {proposalConstituencyId ? 'selected' : 'not selected'}</span>
+            <span className={position ? 'ok' : ''}>• Position {position ? 'set' : 'not set'}</span>
           </div>
           <div className="leap-modal-actions">
             <button className="leap-create-btn" disabled={!isValid} onClick={handleCreate}>✓ Create Position</button>
