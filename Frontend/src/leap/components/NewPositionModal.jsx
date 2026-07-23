@@ -49,8 +49,9 @@ function initials(name) {
 // A native <select> lets the browser choose which way its popup opens, and Chrome
 // flips a long list (S2 returns every assembly in the state) upward. This renders
 // the list itself so it always drops below the button.
-function Dropdown({ value, onChange, options, placeholder, disabled }) {
+function Dropdown({ value, onChange, options, placeholder, disabled, searchable }) {
   const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
   const ref = useRef(null)
 
   useEffect(() => {
@@ -63,6 +64,9 @@ function Dropdown({ value, onChange, options, placeholder, disabled }) {
   }, [open])
 
   const selected = options.find((o) => o.value === value)
+  const shown = query
+    ? options.filter((o) => o.label.toLowerCase().includes(query.toLowerCase()))
+    : options
 
   return (
     <div className="leap-dropdown" ref={ref} onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false) }}>
@@ -70,14 +74,24 @@ function Dropdown({ value, onChange, options, placeholder, disabled }) {
         type="button"
         className={`leap-dropdown-btn ${open ? 'open' : ''}`}
         disabled={disabled}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => { setOpen((o) => !o); setQuery('') }}
       >
         <span className={selected ? '' : 'placeholder'}>{selected ? selected.label : placeholder}</span>
         <span className="leap-dropdown-caret">▾</span>
       </button>
       {open && (
         <div className="leap-dropdown-list">
-          {options.map((o) => (
+          {searchable && (
+            <input
+              className="leap-dropdown-search"
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search…"
+            />
+          )}
+          {shown.length === 0 && <div className="leap-dropdown-empty">No match for “{query}”.</div>}
+          {shown.map((o) => (
             <button
               type="button"
               key={o.value}
@@ -367,6 +381,7 @@ export default function NewPositionModal({ onCreate }) {
             <Dropdown
               value={assemblyId}
               onChange={selectAssembly}
+              searchable
               placeholder="Select…"
               options={assemblies.map((a) => ({
                 value: String(a.constituency_id),
