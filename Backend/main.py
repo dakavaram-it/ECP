@@ -1,10 +1,16 @@
+import binascii
+import hashlib
+import hmac
 import os
+import secrets
+import time
 from pathlib import Path
 
 import pymysql
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
@@ -388,3 +394,153 @@ def get_proposal_candidates_by_proposal_position_id(proposal_position_id: int):
         "ORDER BY PC.proposal_candidate_id",
         (proposal_position_id,),
     )
+
+
+# `user`.Hash_Key is PBKDF2 over an MD5 digest of the credentials, as written by the
+# Java portal that owns the table:
+#   digest   = md5(md5(username) + md5(password))   -- lowercase hex, concatenated
+#   Hash_Key = hex(PBKDF2-HMAC-SHA1(digest, salt, 1000 iterations, 64 bytes))
+# Salt_Key is hex over the *ASCII* salt that side used (e.g. '[B@3da6a354', a Java
+# byte[].toString()), so it has to be un-hexed before it goes into PBKDF2.
+def password_hash(username, password, salt_key):
+    digest = hashlib.md5(
+        (
+            hashlib.md5(username.encode()).hexdigest()
+            + hashlib.md5(password.encode()).hexdigest()
+        ).encode()
+    ).hexdigest()
+    return hashlib.pbkdf2_hmac(
+        "sha1", digest.encode(), binascii.unhexlify(salt_key), 1000, 64
+    ).hex()
+
+
+SESSION_COOKIE = "lbe_session"
+SESSION_TTL = 8 * 60 * 60  # seconds
+
+# token -> {"user": {...}, "expires": epoch}. In process memory, so sessions do not
+# survive a backend restart (with --reload, that means every code edit). The trade is
+# that logging in needs no schema change; move this to a table to outlive restarts.
+SESSIONS = {}
+
+# Browsers must never be able to read the session token from JavaScript, so it goes in
+# an httpOnly cookie rather than localStorage. `secure` is opt-in because dev and the
+# PM2 deployment both serve plain HTTP; set COOKIE_SECURE=true wherever there is TLS.
+COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "false").lower() == "true"
+
+
+def current_user(request):
+    token = request.cookies.get(SESSION_COOKIE)
+    session = SESSIONS.get(token) if token else None
+    if not session:
+        return None
+    if session["expires"] < time.time():
+        del SESSIONS[token]
+        return None
+    return session["user"]
+
+
+# Everything except logging in requires a session: the cadre endpoints serve personal
+# data (names, mobile numbers, voter ids) and S11 writes.
+PUBLIC_PATHS = {"/S14login", "/docs", "/redoc", "/openapi.json"}
+
+
+@app.middleware("http")
+async def guard_response(request: Request, call_next):
+    if request.url.path in PUBLIC_PATHS or request.method == "OPTIONS":
+        response = await call_next(request)
+    elif not current_user(request):
+        response = JSONResponse({"detail": "Not authenticated"}, status_code=401)
+    else:
+        response = await call_next(request)
+
+    # Every response here is either personal data (cadre names, mobile numbers, voter
+    # ids) or the login identity, and none of it is cacheable per-user: without this
+    # the browser may keep it on disk past logout and hand it to whoever signs in next
+    # on the same machine. It is also what makes each login re-fetch from the network.
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+# Failed logins are throttled per username, not per client IP: dev and preview both
+# proxy /api through Vite, so every request arrives from 127.0.0.1 and an IP bucket
+# would throttle all users at once. The cost is that someone can lock a known username
+# out for the window; the benefit is that guessing its password is capped at 10 tries.
+LOGIN_MAX_ATTEMPTS = 10
+LOGIN_WINDOW = 15 * 60  # seconds
+LOGIN_ATTEMPTS = {}
+
+
+def recent_failures(username):
+    now = time.time()
+    hits = [t for t in LOGIN_ATTEMPTS.get(username, []) if now - t < LOGIN_WINDOW]
+    if hits:
+        LOGIN_ATTEMPTS[username] = hits
+    else:
+        LOGIN_ATTEMPTS.pop(username, None)
+    return hits
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+@app.post("/S14login")
+def login(body: LoginRequest, response: Response):
+    if len(recent_failures(body.username)) >= LOGIN_MAX_ATTEMPTS:
+        raise HTTPException(429, "Too many failed attempts. Try again in 15 minutes.")
+
+    # username is indexed but not unique, so every row carrying the name is a
+    # candidate; the hash decides which one (if any) the password belongs to.
+    rows = query(
+        "SELECT user_id, username, firstname, lastname, user_type, state_id, "
+        "district_id, constituency_id, Hash_Key, Salt_Key FROM `user` "
+        "WHERE username = %s AND Hash_Key IS NOT NULL AND Salt_Key IS NOT NULL",
+        (body.username,),
+    )
+    for row in rows:
+        if hmac.compare_digest(
+            password_hash(body.username, body.password, row["Salt_Key"]),
+            row["Hash_Key"].lower(),
+        ):
+            user = {
+                "user_id": row["user_id"],
+                "username": row["username"],
+                "firstname": row["firstname"],
+                "lastname": row["lastname"],
+                "user_type": row["user_type"],
+                "state_id": row["state_id"],
+                "district_id": row["district_id"],
+                "constituency_id": row["constituency_id"],
+            }
+            LOGIN_ATTEMPTS.pop(body.username, None)
+            # A fresh token per login, so a pre-set cookie cannot be fixated.
+            token = secrets.token_urlsafe(32)
+            SESSIONS[token] = {"user": user, "expires": time.time() + SESSION_TTL}
+            response.set_cookie(
+                SESSION_COOKIE,
+                token,
+                max_age=SESSION_TTL,
+                httponly=True,
+                samesite="lax",
+                secure=COOKIE_SECURE,
+                path="/",
+            )
+            return user
+
+    LOGIN_ATTEMPTS.setdefault(body.username, []).append(time.time())
+    # One message for both cases, so it does not reveal which usernames exist.
+    raise HTTPException(401, "Invalid username or password")
+
+
+@app.get("/S15me")
+def me(request: Request):
+    # require_session has already rejected callers without a live session.
+    return current_user(request)
+
+
+@app.post("/S16logout")
+def logout(request: Request, response: Response):
+    SESSIONS.pop(request.cookies.get(SESSION_COOKIE), None)
+    response.delete_cookie(SESSION_COOKIE, path="/")
+    return {"ok": True}

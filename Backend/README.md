@@ -46,6 +46,9 @@ Docs at http://127.0.0.1:8001/docs
 | `POST /S11assignProposalCandidate` | Proposes a cadre for a position after reservation + availability checks; returns the new `proposal_candidate_id` | JSON body: `proposal_position_id`, `tdp_cadre_id` |
 | `GET /S12cadreSearch` | Cadre **eligible for a proposal** by membership id, mobile or name | `proposal_constituency_id`, `search_type` (`MembershipId`\|`MobileNo`\|`Name`), `search_value` |
 | `GET /S13getProposalCandidatesByProposalPositionId` | Cadre currently proposed for a position (`is_active = 'Y'`), same fields as S12 | `proposal_position_id` (required) |
+| `POST /S14login` | Validates credentials against the `user` table, opens a session and sets the cookie; returns the user's identity fields, `401`, or `429` when throttled | JSON body: `username`, `password` |
+| `GET /S15me` | The logged-in user for the current session cookie, or `401` | — |
+| `POST /S16logout` | Drops the session server-side and clears the cookie | — |
 
 `S11` is the only write endpoint. It rejects with `404` for an unknown position or cadre,
 and `409` when the cadre is not registered in the proposal constituency, when their caste
@@ -66,6 +69,60 @@ to 1,354 (panchayat + BC).
 `S8` and `S10` are unused by the frontend: `S7` already returns the role names `S8`
 gives, and its `max_proposals`/`proposed_cnt` pair is the same predicate `S10`
 evaluates. Both remain for API consumers.
+
+`S14` checks the password the way the Java portal that owns the `user` table wrote it:
+
+```
+digest   = md5(md5(username) + md5(password))     lowercase hex, concatenated
+Hash_Key = hex(PBKDF2-HMAC-SHA1(digest, salt, 1000 iterations, 64 bytes))
+```
+
+`Salt_Key` is hex over the **ASCII** salt that side used — for `itgrids` it decodes to
+`[B@3da6a354`, a Java `byte[].toString()` — so it must be un-hexed before it is fed to
+PBKDF2, not treated as raw salt bytes. `username` is indexed but **not unique**, so
+`S14` hashes against every row carrying the name and lets the hash pick the account.
+It returns the same `401` for an unknown user and a bad password, and never returns
+`Hash_Key` / `Salt_Key`.
+
+It does **not** check `is_enabled`: 75,128 of the 76,782 rows are `'N'`, so gating on it
+would reject almost every account. Add the condition if those rows are genuinely
+disabled accounts rather than import leftovers.
+
+**Every endpoint except `S14` and the docs requires a session** (`guard_response`
+middleware, `PUBLIC_PATHS` is the exemption list). The cadre endpoints serve personal
+data and `S11` writes, so an open port was the same as an open database. Unauthenticated
+callers get `401 {"detail": "Not authenticated"}`.
+
+The same middleware stamps **`Cache-Control: no-store` on every response**. These payloads
+are personal data or the login identity and are never cacheable per-user: without it the
+browser may hold them on disk past logout and serve them to whoever signs in next on that
+machine. It is also what guarantees a fresh login re-reads every endpoint from the network
+rather than the HTTP cache.
+
+The session token is a `secrets.token_urlsafe(32)` in an **httpOnly** cookie
+(`SameSite=lax`, `Path=/`, 8-hour expiry) — never `localStorage`, so page scripts cannot
+read it. A fresh token is issued on every login, so a pre-set cookie cannot be fixated,
+and `S16` deletes it server-side rather than only clearing the browser copy. Set
+`COOKIE_SECURE=true` in `.env` wherever there is TLS; it is off by default because dev
+and the PM2 deployment both serve plain HTTP.
+
+**That plain HTTP is the one real credential exposure left.** `S14`'s request body carries
+the password, and every later request carries the session cookie, so on an untrusted
+network both are readable in transit. Note that seeing the payload in your own DevTools
+Network tab is *not* that leak — it is the browser showing you the request you just made,
+and no server change can or should hide it. Do not try to fix it by hashing the password
+in the browser: the hash simply becomes the credential, replayable by anyone who captures
+it, and it would break compatibility with the Java portal that writes `Hash_Key`. The fix
+is TLS in front of both processes, then `COOKIE_SECURE=true`.
+
+Sessions live in a **process dictionary**, so a backend restart logs everyone out — with
+`--reload` that is every code edit. That is the trade for needing no schema change; move
+`SESSIONS` to a table to outlive restarts or to run more than one worker.
+
+Failed logins are throttled to 10 per username per 15 minutes. The key is the **username,
+not the client IP**: `dev` and `preview` both proxy `/api` through Vite, so every request
+arrives from `127.0.0.1` and an IP bucket would throttle the entire app at once. The cost
+is that a known username can be locked out for the window, including for its real owner.
 
 Caveats found while wiring the UI:
 

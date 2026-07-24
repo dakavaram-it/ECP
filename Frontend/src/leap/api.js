@@ -1,8 +1,24 @@
 import { useEffect, useState } from 'react'
 
+// A 401 from a data call means the session lapsed underneath us, so the app has to
+// stop showing a logged-in screen. The auth endpoints are exempt: S14 answers 401 for
+// bad credentials and S15/S16 answer 401 when there is simply no session yet — none of
+// those are an expiry, and treating a failed login as one would clear the error banner.
+const AUTH_PATHS = ['/S14login', '/S15me', '/S16logout']
+
+let onUnauthorized = () => {}
+export const setUnauthorizedHandler = (fn) => { onUnauthorized = fn }
+
+const checkUnauthorized = (path, status) => {
+  if (status === 401 && !AUTH_PATHS.some((p) => path.startsWith(p))) onUnauthorized()
+}
+
 const get = async (path) => {
   const res = await fetch(`/api${path}`)
-  if (!res.ok) throw new Error(`${path} -> ${res.status}`)
+  if (!res.ok) {
+    checkUnauthorized(path, res.status)
+    throw new Error(`${path} -> ${res.status}`)
+  }
   return res.json()
 }
 
@@ -15,10 +31,19 @@ const post = async (path, body) => {
     body: JSON.stringify(body),
   })
   const data = await res.json().catch(() => null)
-  if (!res.ok) throw new Error(data?.detail || `${path} -> ${res.status}`)
+  if (!res.ok) {
+    checkUnauthorized(path, res.status)
+    throw new Error(data?.detail || `${path} -> ${res.status}`)
+  }
   return data
 }
 
+// The session is an httpOnly cookie, so it is never readable here; fetch attaches it
+// on its own (these are same-origin through the Vite proxy). S15 is how the app finds
+// out whether one is still live.
+export const login = (username, password) => post('/S14login', { username, password })
+export const me = () => get('/S15me')
+export const logout = () => post('/S16logout', {})
 export const getElectionTypes = () => get('/S1getProposalElectionTypes')
 export const getAssemblies = () => get('/S2getAssemblyConstituenciesInAState')
 export const getMandals = (constituencyId) =>

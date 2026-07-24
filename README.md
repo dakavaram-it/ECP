@@ -9,10 +9,11 @@ party internal portal.
   proposal constituencies, reservation, positions, cadre search, and candidate
   assignment.
 
-The wizard's selections and the candidates proposed for a position all come from the
-database, and assignments persist. What still resets on reload is the position wrapper
-the frontend builds around them (stage index, labels) plus the unreachable seed data in
-`Frontend/src/leap/data.js`.
+Everything the reachable UI shows comes from the database — picklists, reservation,
+positions, cadre search and the proposed candidates — and assignments persist. The
+frontend keeps no dataset of its own; only the wizard's current selections reset on
+reload. The seed data in `Frontend/src/leap/data.js` is left over from before the
+backend existed and no longer reaches the screen.
 
 ## Setup
 
@@ -87,10 +88,10 @@ Frontend/
     App.jsx            toggles between login and the app
     Login.jsx          visual-only login; accepts any credentials
     leap/
-      Leap.jsx         owns all state, acts as the ad-hoc router
-      data.js          seed dataset, stage definitions, derived helpers
+      Leap.jsx         ad-hoc router; the view never changes from its initial one
+      data.js          seed dataset, stage definitions, derived helpers (dead)
       api.js           /api fetch wrappers + useList hook
-      components/      NewPositionModal, PositionDetail, Sidebar, ...
+      components/      NewPositionModal (the app), Sidebar, and unreachable ones
       Leap.css         every class for the module
 Backend/
   main.py              S1–S13, see Backend/README.md
@@ -102,6 +103,7 @@ Backend/
 - There is no authentication. `Login.jsx` accepts any username/password.
 - `.env` is committed to this repository, so anyone with read access has the database
   credentials.
-- Some screens (`AllPositions`, `PositionCard`) and `components/Dashboard.jsx` are
-  not reachable from the current UI. See `CLAUDE.md` for the details and for the
-  truncated `STAGES` pipeline caveat.
+- The reachable UI is one screen: `components/NewPositionModal.jsx` (plus `Sidebar`).
+  `PositionDetail`, `AllPositions`, `PositionCard` and `Dashboard` are all unreachable,
+  as is most of `data.js`. See `CLAUDE.md` for the details and for the truncated
+  `STAGES` pipeline caveat.

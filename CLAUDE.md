@@ -15,7 +15,7 @@ npm run preview      # serve the built output on 0.0.0.0:9001
 
 There is no test runner, linter, or formatter configured — do not assume `npm test` or `npm run lint` exist. Verification means building (`npm run build`) and clicking through in the browser.
 
-`vite.config.js` proxies `/api/*` to `http://127.0.0.1:8001` with the `/api` prefix stripped, configured identically for `dev` and `preview`, so the backend must be running too (`Backend/README.md` has the uvicorn command and the `.env` requirement). **When it isn't, every picklist is silently empty** — `useList` swallows fetch errors, so a dead backend looks exactly like a state with no assemblies in it. Check the console and network tab first when the wizard renders but won't populate.
+`vite.config.js` proxies `/api/*` to `http://127.0.0.1:8001` with the `/api` prefix stripped, configured identically for `dev` and `preview`, so the backend must be running too (`Backend/README.md` has the uvicorn command and the `.env` requirement). **When it isn't, every picklist is silently empty** — `useList` swallows fetch errors, so a dead backend looks exactly like a state with no assemblies in it. Check the console and network tab first when the wizard renders but won't populate. Note that this is now the signature of a *dead backend specifically*: a `401` no longer lands here, because `api.js` intercepts it and sends the app back to the login screen (see below), so a blank wizard means the backend is unreachable rather than the session having lapsed.
 
 Deployment: `Frontend/install.sh` installs deps, builds, and (re)starts the app under PM2 using `ecosystem.config.cjs` (process name `portal-frontend`, `vite preview` on port 9001). Run it from `Frontend/`.
 
@@ -28,7 +28,7 @@ The reachable flow is backend-driven end to end and holds **no application state
 **The entire reachable app is `Sidebar` + `NewPositionModal`.** `NewPositionModal` is a single scrolling screen that does everything (pick a body → view its members, or add one), takes no props, and never navigates. Everything else in `leap/` — the `positions` dataset, `PositionDetail`, `AllPositions`, `PositionCard`, `Dashboard`, and the whole `STAGES` pipeline — is unreachable. See "Known dead / inert code".
 
 Two top-level screens, switched by a boolean in `Frontend/src/App.jsx`:
-- `Frontend/src/Login.jsx` — visual-only login. `handleSubmit` accepts *any* credentials, `console.log`s the username/password, and calls `onLoginSuccess()`. There is no auth.
+- `Frontend/src/Login.jsx` — real login. `handleSubmit` posts to `S14`, which validates the credentials against the `user` table (see `Backend/README.md` for the PBKDF2-over-MD5 scheme), and calls `onLoginSuccess(user)` only on `200`; a `401` renders in `.login-error`. S14 opens a server-side session and sets an **httpOnly** cookie, so the token is never reachable from JS and there is nothing in `localStorage` to steal. `App.jsx` cannot read the cookie either — it calls `S15` on mount to ask whether a session is live, which is what makes a reload keep you logged in, and renders `null` until that answers so the login screen does not flash. `onLogout` calls `S16`, which drops the session server-side. **Every endpoint except S14 requires the session** (see `Backend/README.md`).
 - `Frontend/src/leap/Leap.jsx` — the actual app.
 
 ## The `leap/` module
@@ -42,7 +42,7 @@ Two top-level screens, switched by a boolean in `Frontend/src/App.jsx`:
 | Component | Reached via | Notes |
 |---|---|---|
 | `NewPositionModal` | `view.name === 'newPosition'` (initial, and permanent) | The whole app. 6 steps, each revealed only when the previous is filled |
-| `Sidebar` | always | Static; the single nav button has no handler |
+| `Sidebar` | always | The single nav button has no handler. Footer shows the logged-in user (`firstname lastname`, falling back to `username`) and a logout button that clears `App.jsx`'s `user` |
 | `PositionDetail` | `view.name === 'detail'` | **Unreachable** — nothing sets this view since `createPosition` was removed |
 | `AllPositions` | `view.name === 'positions'` | **Unreachable** — nothing sets this view |
 | `PositionCard` | rendered by `AllPositions` | therefore also unreachable |
@@ -86,6 +86,8 @@ Central source of both the seed dataset and the domain vocabulary. It exports:
 ### `Frontend/src/leap/api.js`
 
 One thin `get`/`post` pair over `/api/*` (Vite proxies it), one named function per endpoint, plus `useList(load, deps)` — the hook every picklist uses. `useList` returns `[]` until the promise resolves **and `[]` again on failure**, logging the error rather than surfacing it: a failed picklist is indistinguishable from an empty one in the UI. `post` unwraps FastAPI's `{detail: "..."}` into the thrown `Error.message`, which is what the S11 error banner shows.
+
+Both `get` and `post` route a `401` through `checkUnauthorized` before throwing: it calls the handler registered by `App.jsx` via `setUnauthorizedHandler`, which clears `user` and returns to the login screen. **`AUTH_PATHS` (`S14`/`S15`/`S16`) is exempt and must stay that way** — `S14` answers `401` for bad credentials and `S15` answers `401` on a normal first visit, so treating those as expiries would wipe the login form's own error banner. Only `401` triggers it: a `429` from the login throttle and a `500` from a dead backend must not log anyone out. Adding an endpoint that can legitimately `401` without meaning "session over" means adding it to `AUTH_PATHS`.
 
 ## Traps to know before editing
 
